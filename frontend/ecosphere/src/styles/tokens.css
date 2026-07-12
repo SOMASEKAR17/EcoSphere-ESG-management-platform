@@ -1,0 +1,47 @@
+:root {
+  /* Primary brand (Odoo-aligned) */
+  --plum: #714B67;
+  --plum-light: #8E6482;
+  --teal: #017E84;
+  --plum-tint: #F3EEF1;
+
+  /* Pillar colors */
+  --env-green: #3F9142;
+  --social-teal: #017E84;
+  --gov-plum: #714B67;
+  --gamify-gold: #E4A900;
+
+  /* Status & feedback */
+  --success: #2FA84F;
+  --warning: #E5A422;
+  --critical: #D9534F;
+  --xp-highlight: #F4D35E;
+
+  /* Neutrals (dark-mode base, matching provided mockups) */
+  --bg-page: #0E0B0D;
+  --bg-surface: #171315;
+  --bg-surface-raised: #1D181B;
+  --border: #2B2129;
+  --text-primary: #F3EEF1;
+  --text-secondary: #8F8F8F;
+  --text-tertiary: #6B6468;
+
+  /* Light neutrals kept for reference / future light theme */
+  --page-bg-light: #FAF9FA;
+  --border-light: #DEDADC;
+  --gray-secondary: #8F8F8F;
+  --text-primary-light: #2B2129;
+
+  /* Typography */
+  --font-display: 'Sora', 'Segoe UI', sans-serif;
+  --font-body: 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Radii / shadows */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.35);
+  --shadow-glow-plum: 0 0 0 1px rgba(113,75,103,0.35), 0 8px 24px rgba(113,75,103,0.18);
+  --shadow-glow-teal: 0 0 0 1px rgba(1,126,132,0.35), 0 8px 24px rgba(1,126,132,0.18);
+}
