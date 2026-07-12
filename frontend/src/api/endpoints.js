@@ -119,3 +119,8 @@ export const getEmployees = () => apiClient.get('/employees');
 // ---------- Notifications ----------
 export const getNotifications = () => apiClient.get('/notifications');
 export const markNotificationRead = (id) => apiClient.put(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => apiClient.put('/notifications/read-all');
+
+// ---------- Admin: Role Management ----------
+export const updateEmployeeRole = (employeeId, role) =>
+  apiClient.put(`/auth/employees/${employeeId}/role`, { role });

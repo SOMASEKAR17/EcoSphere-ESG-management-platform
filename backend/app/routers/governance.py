@@ -25,7 +25,7 @@ def list_policies(db: Session = Depends(get_db), _: Employee = Depends(get_curre
 
 
 @router.post("/policies", response_model=PolicyOut, status_code=201)
-def create_policy(payload: PolicyCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_policy(payload: PolicyCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     policy = EsgPolicy(**payload.model_dump())
     db.add(policy)
     db.commit()
@@ -34,7 +34,7 @@ def create_policy(payload: PolicyCreate, db: Session = Depends(get_db), _: Emplo
 
 
 @router.put("/policies/{policy_id}", response_model=PolicyOut)
-def update_policy(policy_id: int, payload: PolicyUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_policy(policy_id: int, payload: PolicyUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     policy = db.get(EsgPolicy, policy_id)
     if not policy:
         raise not_found("Policy not found.")
@@ -46,7 +46,7 @@ def update_policy(policy_id: int, payload: PolicyUpdate, db: Session = Depends(g
 
 
 @router.delete("/policies/{policy_id}")
-def delete_policy(policy_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_policy(policy_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     policy = db.get(EsgPolicy, policy_id)
     if not policy:
         raise not_found("Policy not found.")
@@ -82,7 +82,7 @@ def acknowledge_policy(policy_id: int, db: Session = Depends(get_db), current_em
 
 
 @router.get("/policy-acknowledgements", response_model=list[PolicyAcknowledgementOut])
-def list_policy_acknowledgements(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def list_policy_acknowledgements(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     return db.query(PolicyAcknowledgement).all()
 
 
@@ -98,7 +98,7 @@ def list_audits(db: Session = Depends(get_db), _: Employee = Depends(get_current
 
 
 @router.post("/audits", response_model=AuditOut, status_code=201)
-def create_audit(payload: AuditCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_audit(payload: AuditCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     audit = Audit(**payload.model_dump())
     db.add(audit)
     db.commit()
@@ -115,7 +115,7 @@ def get_audit(audit_id: int, db: Session = Depends(get_db), _: Employee = Depend
 
 
 @router.put("/audits/{audit_id}", response_model=AuditOut)
-def update_audit(audit_id: int, payload: AuditUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_audit(audit_id: int, payload: AuditUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     audit = db.get(Audit, audit_id)
     if not audit:
         raise not_found("Audit not found.")
@@ -128,7 +128,7 @@ def update_audit(audit_id: int, payload: AuditUpdate, db: Session = Depends(get_
 
 # ---- Compliance Issues ------------------------------------------------
 @router.get("/compliance-issues", response_model=list[ComplianceIssueOut])
-def list_compliance_issues(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def list_compliance_issues(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     return db.query(ComplianceIssue).order_by(ComplianceIssue.due_date).all()
 
 
@@ -140,7 +140,7 @@ def my_compliance_issues(db: Session = Depends(get_db), current_employee: Employ
 
 
 @router.post("/compliance-issues", response_model=ComplianceIssueOut, status_code=201)
-def create_compliance_issue(payload: ComplianceIssueCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_compliance_issue(payload: ComplianceIssueCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     if payload.due_date < date.today():
         raise bad_request("Due date cannot be in the past.")
 
@@ -171,7 +171,7 @@ def create_compliance_issue(payload: ComplianceIssueCreate, db: Session = Depend
 
 
 @router.put("/compliance-issues/{issue_id}", response_model=ComplianceIssueOut)
-def update_compliance_issue(issue_id: int, payload: ComplianceIssueUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_compliance_issue(issue_id: int, payload: ComplianceIssueUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     issue = db.get(ComplianceIssue, issue_id)
     if not issue:
         raise not_found("Compliance issue not found.")
@@ -191,5 +191,5 @@ def update_compliance_issue(issue_id: int, payload: ComplianceIssueUpdate, db: S
 
 
 @router.get("/compliance-issues/overdue", response_model=list[ComplianceIssueOut])
-def overdue_compliance_issues(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def overdue_compliance_issues(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     return db.query(ComplianceIssue).filter(ComplianceIssue.is_overdue.is_(True)).all()

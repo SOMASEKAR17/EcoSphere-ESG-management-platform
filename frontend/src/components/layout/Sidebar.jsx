@@ -1,13 +1,16 @@
 import { useState, useRef, useLayoutEffect } from 'react';
-import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { NavLink, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
+import { ChevronDown, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react';
 import gsap from 'gsap';
 import { navConfig } from '../../data/navConfig';
+import useAuth from '../../hooks/useAuth';
 import './sidebar.css';
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [openKey, setOpenKey] = useState(
     navConfig.find((n) => n.path !== '/' && location.pathname.startsWith(n.path))?.key ?? null
@@ -23,6 +26,16 @@ export default function Sidebar() {
   }, []);
 
   const activeTab = searchParams.get('tab');
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  // Build initials from the logged-in user
+  const displayName = user ? `${user.first_name} ${user.last_name}` : 'User';
+  const initials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : 'U';
+  const roleName = user?.role === 'Admin' ? 'ESG Administrator' : 'Employee';
 
   return (
     <aside ref={asideRef} className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
@@ -95,11 +108,19 @@ export default function Sidebar() {
 
       {!collapsed && (
         <div className="sidebar__footer">
-          <div className="sidebar__footer-avatar">AM</div>
-          <div>
-            <div className="sidebar__footer-name">Anjali Mehta</div>
-            <div className="sidebar__footer-role">ESG Administrator</div>
+          <div className="sidebar__footer-avatar">{initials}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sidebar__footer-name">{displayName}</div>
+            <div className="sidebar__footer-role">{roleName}</div>
           </div>
+          <button
+            className="sidebar__logout-btn"
+            onClick={handleLogout}
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       )}
     </aside>

@@ -40,7 +40,7 @@ def list_challenges(status: Optional[str] = Query(default=None), db: Session = D
 
 
 @router.post("/challenges", response_model=ChallengeOut, status_code=201)
-def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     challenge = Challenge(**payload.model_dump())
     db.add(challenge)
     db.commit()
@@ -57,7 +57,7 @@ def get_challenge(challenge_id: int, db: Session = Depends(get_db), _: Employee 
 
 
 @router.put("/challenges/{challenge_id}", response_model=ChallengeOut)
-def update_challenge(challenge_id: int, payload: ChallengeUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_challenge(challenge_id: int, payload: ChallengeUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     challenge = db.get(Challenge, challenge_id)
     if not challenge:
         raise not_found("Challenge not found.")
@@ -80,7 +80,7 @@ def update_challenge(challenge_id: int, payload: ChallengeUpdate, db: Session = 
 
 
 @router.delete("/challenges/{challenge_id}")
-def delete_challenge(challenge_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_challenge(challenge_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     challenge = db.get(Challenge, challenge_id)
     if not challenge:
         raise not_found("Challenge not found.")
@@ -141,7 +141,7 @@ async def update_challenge_participation(
 
 
 @router.get("/challenge-participation", response_model=list[ChallengeParticipationOut])
-def list_challenge_participation(status: Optional[str] = Query(default=None), db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def list_challenge_participation(status: Optional[str] = Query(default=None), db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     query = db.query(ChallengeParticipation)
     if status:
         query = query.filter(ChallengeParticipation.approval_status == status)
@@ -154,7 +154,7 @@ def my_challenge_participation(db: Session = Depends(get_db), current_employee: 
 
 
 @router.put("/challenge-participation/{participation_id}/approve", response_model=ChallengeParticipationOut)
-def approve_challenge_participation(participation_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def approve_challenge_participation(participation_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     participation = db.get(ChallengeParticipation, participation_id)
     if not participation:
         raise not_found("Challenge participation record not found.")
@@ -184,7 +184,7 @@ def approve_challenge_participation(participation_id: int, db: Session = Depends
 
 
 @router.put("/challenge-participation/{participation_id}/reject", response_model=ChallengeParticipationOut)
-def reject_challenge_participation(participation_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def reject_challenge_participation(participation_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     participation = db.get(ChallengeParticipation, participation_id)
     if not participation:
         raise not_found("Challenge participation record not found.")
@@ -206,7 +206,7 @@ def list_badges(db: Session = Depends(get_db), _: Employee = Depends(get_current
 
 
 @router.post("/badges", response_model=BadgeOut, status_code=201)
-def create_badge(payload: BadgeCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_badge(payload: BadgeCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     badge = Badge(**payload.model_dump())
     db.add(badge)
     db.commit()
@@ -215,7 +215,7 @@ def create_badge(payload: BadgeCreate, db: Session = Depends(get_db), _: Employe
 
 
 @router.put("/badges/{badge_id}", response_model=BadgeOut)
-def update_badge(badge_id: int, payload: BadgeUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_badge(badge_id: int, payload: BadgeUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     badge = db.get(Badge, badge_id)
     if not badge:
         raise not_found("Badge not found.")
@@ -244,7 +244,7 @@ def list_rewards(db: Session = Depends(get_db), _: Employee = Depends(get_curren
 
 
 @router.post("/rewards", response_model=RewardOut, status_code=201)
-def create_reward(payload: RewardCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_reward(payload: RewardCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     reward = Reward(**payload.model_dump())
     db.add(reward)
     db.commit()
@@ -253,7 +253,7 @@ def create_reward(payload: RewardCreate, db: Session = Depends(get_db), _: Emplo
 
 
 @router.put("/rewards/{reward_id}", response_model=RewardOut)
-def update_reward(reward_id: int, payload: RewardUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_reward(reward_id: int, payload: RewardUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     reward = db.get(Reward, reward_id)
     if not reward:
         raise not_found("Reward not found.")

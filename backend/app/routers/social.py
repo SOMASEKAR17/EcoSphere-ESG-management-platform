@@ -29,7 +29,7 @@ def list_csr_activities(db: Session = Depends(get_db), _: Employee = Depends(get
 
 
 @router.post("/csr-activities", response_model=CsrActivityOut, status_code=201)
-def create_csr_activity(payload: CsrActivityCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_csr_activity(payload: CsrActivityCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     activity = CsrActivity(**payload.model_dump())
     db.add(activity)
     db.commit()
@@ -38,7 +38,7 @@ def create_csr_activity(payload: CsrActivityCreate, db: Session = Depends(get_db
 
 
 @router.put("/csr-activities/{activity_id}", response_model=CsrActivityOut)
-def update_csr_activity(activity_id: int, payload: CsrActivityUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_csr_activity(activity_id: int, payload: CsrActivityUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     activity = db.get(CsrActivity, activity_id)
     if not activity:
         raise not_found("CSR activity not found.")
@@ -50,7 +50,7 @@ def update_csr_activity(activity_id: int, payload: CsrActivityUpdate, db: Sessio
 
 
 @router.delete("/csr-activities/{activity_id}")
-def delete_csr_activity(activity_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_csr_activity(activity_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     activity = db.get(CsrActivity, activity_id)
     if not activity:
         raise not_found("CSR activity not found.")
@@ -105,7 +105,7 @@ async def participate_in_csr_activity(
 
 
 @router.get("/csr-participation", response_model=list[ParticipationOut])
-def list_csr_participation(status: Optional[str] = Query(default=None), db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def list_csr_participation(status: Optional[str] = Query(default=None), db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     query = db.query(EmployeeParticipation)
     if status:
         query = query.filter(EmployeeParticipation.approval_status == status)
@@ -123,7 +123,7 @@ def my_csr_participation(db: Session = Depends(get_db), current_employee: Employ
 
 
 @router.put("/csr-participation/{participation_id}/approve", response_model=ParticipationOut)
-def approve_csr_participation(participation_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def approve_csr_participation(participation_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     participation = db.get(EmployeeParticipation, participation_id)
     if not participation:
         raise not_found("Participation record not found.")
@@ -160,7 +160,7 @@ def approve_csr_participation(participation_id: int, db: Session = Depends(get_d
 
 
 @router.put("/csr-participation/{participation_id}/reject", response_model=ParticipationOut)
-def reject_csr_participation(participation_id: int, payload: ParticipationRejectRequest, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def reject_csr_participation(participation_id: int, payload: ParticipationRejectRequest, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     participation = db.get(EmployeeParticipation, participation_id)
     if not participation:
         raise not_found("Participation record not found.")
@@ -187,7 +187,7 @@ def list_diversity_metrics(department_id: Optional[int] = Query(default=None), d
 
 
 @router.post("/diversity-metrics", response_model=DiversityMetricOut, status_code=201)
-def create_diversity_metric(payload: DiversityMetricCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_diversity_metric(payload: DiversityMetricCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     metric = DiversityMetric(**payload.model_dump())
     db.add(metric)
     db.commit()

@@ -22,7 +22,6 @@ import ToastStack from '../components/common/Toast';
 import useFadeInUp from '../hooks/useFadeInUp';
 import useTabParam from '../hooks/useTabParam';
 import useGamification from '../hooks/useGamification';
-import { leaderboardIndividual, leaderboardDepartment, rewards } from '../data/mockData';
 
 const TABS = ['Challenges', 'Challenge Participation', 'Badges', 'Rewards', 'Leaderboard'];
 
@@ -69,7 +68,7 @@ export default function Gamification() {
       <div ref={contentRef}>
         {tab === 'Challenges' && <ChallengesView />}
         {tab === 'Challenge Participation' && (
-          <PlaceholderPanel text="Challenge participation log — synced from Social approvals." />
+          <ChallengeParticipationView />
         )}
         {tab === 'Badges' && <BadgeGallery />}
         {tab === 'Rewards' && <RewardsPanel />}
@@ -85,11 +84,11 @@ function XPSummary() {
     <div className="panel xp-summary" style={{ marginBottom: 20, border: '1px solid var(--gamify-gold)' }}>
       <Trophy size={22} color="var(--gamify-gold)" />
       <div className="xp-summary__stat">
-        <span className="xp-summary__stat-value">{userStats.totalXP.toLocaleString()}</span>
+        <span className="xp-summary__stat-value">{(userStats.totalXP || 0).toLocaleString()}</span>
         <span className="xp-summary__stat-label">Your XP</span>
       </div>
       <div className="xp-summary__stat">
-        <span className="xp-summary__stat-value">{userStats.completedChallenges}</span>
+        <span className="xp-summary__stat-value">{userStats.completedChallenges || 0}</span>
         <span className="xp-summary__stat-label">Challenges Completed</span>
       </div>
     </div>
@@ -169,7 +168,7 @@ function ChallengesView() {
 
       <div className="grid-4" style={{ marginBottom: 24 }}>
         {challenges.map((c) => {
-          const Icon = CHALLENGE_ICONS[c.icon];
+          const Icon = CHALLENGE_ICONS[c.icon] || FaBicycle;
           return (
             <div key={c.id} className="panel" style={{ border: '1px solid var(--gamify-gold)' }}>
               <Icon size={20} color="var(--gamify-gold)" style={{ marginBottom: 10 }} />
@@ -200,6 +199,10 @@ function ChallengesView() {
   );
 }
 
+function ChallengeParticipationView() {
+  return <div className="panel empty-state">Challenge participation log — synced from Social approvals.</div>;
+}
+
 function BadgeGallery({ compact }) {
   const { badges } = useGamification();
 
@@ -210,8 +213,8 @@ function BadgeGallery({ compact }) {
       </div>
       <div className="grid-2">
         {badges.map((b) => {
-          const Icon = BADGE_ICONS[b.icon];
-          const unit = b.unlockRule.type === 'xp' ? 'XP' : 'challenges';
+          const Icon = BADGE_ICONS[b.icon] || FaStar;
+          const unit = b.unlockRule?.type === 'xp' ? 'XP' : 'challenges';
           return (
             <div key={b.id} className={`badge-card ${b.earned ? 'badge-card--earned' : 'badge-card--locked'}`}>
               <div className="badge-card__head">
@@ -222,9 +225,9 @@ function BadgeGallery({ compact }) {
                 <span className="text-secondary" style={{ fontSize: 12 }}>Earned</span>
               ) : (
                 <>
-                  <ProgressBar percent={b.progressPercent} />
+                  <ProgressBar percent={b.progressPercent || 0} />
                   <span className="badge-card__progress-label">
-                    {Math.min(b.current, b.threshold)} / {b.threshold} {unit}
+                    {Math.min(b.current || 0, b.threshold || 0)} / {b.threshold || 0} {unit}
                   </span>
                 </>
               )}
@@ -242,7 +245,7 @@ function BadgeGallery({ compact }) {
 }
 
 function RewardsPanel() {
-  const { userStats, redeemReward, redemptions } = useGamification();
+  const { userStats, redeemReward, rewards, redemptions } = useGamification();
 
   return (
     <div className="panel">
@@ -252,14 +255,14 @@ function RewardsPanel() {
         </div>
         <div className="panel-toolbar__spacer" />
         <span className="pill" style={{ border: '1px solid var(--gamify-gold)', color: 'var(--gamify-gold)' }}>
-          Balance: {userStats.totalXP.toLocaleString()} XP
+          Balance: {(userStats.totalXP || 0).toLocaleString()} XP
         </span>
       </div>
 
       <div className="grid-4" style={{ marginBottom: 24 }}>
         {rewards.map((r) => {
-          const Icon = REWARD_ICONS[r.icon];
-          const canAfford = userStats.totalXP >= r.xpCost;
+          const Icon = REWARD_ICONS[r.icon] || FaGift;
+          const canAfford = (userStats.totalXP || 0) >= r.xpCost;
           return (
             <div key={r.id} className="reward-card">
               <Icon size={20} color="var(--gamify-gold)" />
@@ -286,7 +289,7 @@ function RewardsPanel() {
       </div>
 
       <div className="panel__title" style={{ fontSize: 13 }}>Redemption History</div>
-      {redemptions.length === 0 ? (
+      {(!redemptions || redemptions.length === 0) ? (
         <div className="text-secondary" style={{ fontSize: 12 }}>No rewards redeemed yet.</div>
       ) : (
         <div className="data-table-wrap">
@@ -311,7 +314,7 @@ function RewardsPanel() {
 
 function LeaderboardPanel({ compact }) {
   const [view, setView] = useState('Individual');
-  const { userStats } = useGamification();
+  const { userStats, leaderboardIndividual, leaderboardDepartment } = useGamification();
 
   const rows =
     view === 'Individual'
@@ -347,7 +350,7 @@ function LeaderboardPanel({ compact }) {
               <tr key={l.rank} className={l.isCurrentUser ? 'leaderboard-row--you' : ''}>
                 <td>#{l.rank}</td>
                 <td>{l.name}</td>
-                <td className="mono" style={{ color: 'var(--gamify-gold)' }}>{l.xp.toLocaleString()}</td>
+                <td className="mono" style={{ color: 'var(--gamify-gold)' }}>{(l.xp || 0).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -355,8 +358,4 @@ function LeaderboardPanel({ compact }) {
       </div>
     </div>
   );
-}
-
-function PlaceholderPanel({ text }) {
-  return <div className="panel empty-state">{text}</div>;
 }

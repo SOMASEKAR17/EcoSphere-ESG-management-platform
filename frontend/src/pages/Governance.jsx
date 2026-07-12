@@ -176,7 +176,7 @@ function AcknowledgementsTable() {
                   <td>{a.department}</td>
                   <td>{a.policy}</td>
                   <td style={{ minWidth: 160 }}>
-                    <ProgressBar percent={percent} />
+                    <ProgressBar percent={percent} color={ACCENT} />
                     <div className="text-secondary" style={{ fontSize: 11 }}>{acknowledged} / {total}</div>
                   </td>
                   <td>

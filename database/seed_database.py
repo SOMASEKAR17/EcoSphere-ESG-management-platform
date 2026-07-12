@@ -232,8 +232,9 @@ REWARDS = [
 ]
 
 EMPLOYEES = [
-    {"first": "Aarav",    "last": "Sharma",     "email": "aarav.sharma@ecosphere.io",     "role": "Admin",    "dept_code": "EXEC",  "provider": "google"},
-    {"first": "Priya",    "last": "Nair",       "email": "priya.nair@ecosphere.io",       "role": "Admin",    "dept_code": "ESG",   "provider": "google"},
+    {"first": "Soma",     "last": "Sekar",      "email": "somasekarnaidu79@gmail.com",    "role": "Admin",    "dept_code": "EXEC",  "provider": "google"},
+    {"first": "Aarav",    "last": "Sharma",      "email": "aarav.sharma@ecosphere.io",     "role": "Employee", "dept_code": "EXEC",  "provider": "google"},
+    {"first": "Priya",    "last": "Nair",        "email": "priya.nair@ecosphere.io",       "role": "Employee", "dept_code": "ESG",   "provider": "google"},
     {"first": "Rohan",    "last": "Gupta",      "email": "rohan.gupta@ecosphere.io",      "role": "Employee", "dept_code": "RND",   "provider": "microsoft"},
     {"first": "Sneha",    "last": "Iyer",       "email": "sneha.iyer@ecosphere.io",       "role": "Employee", "dept_code": "RND",   "provider": "google"},
     {"first": "Vikram",   "last": "Singh",      "email": "vikram.singh@ecosphere.io",     "role": "Employee", "dept_code": "OPS",   "provider": "github"},
@@ -569,10 +570,26 @@ def seed(conn):
     eg_count = 0
     for _, g in goal_groups.iterrows():
         dept_id = dept_id_by_code[random.choice(dept_codes)]
-        target_val = round(float(g["Expected_Carbon_Reduction_Percent"]), 2)
-        current_val = round(float(g["Carbon_Emission_tCO2e_TARGET"]), 2)
+        # target_value should be the larger number (the goal to achieve)
+        # current_value should be partial progress toward that target
+        raw_target = round(float(g["Carbon_Emission_tCO2e_TARGET"]), 2)
+        reduction_pct = float(g["Expected_Carbon_Reduction_Percent"]) / 100.0
+        # Make target a meaningful absolute value, current a random fraction of it
+        target_val = max(raw_target, 10.0)
+        progress_frac = round(random.uniform(0.15, 0.95), 2)
+        current_val = round(target_val * progress_frac, 2)
+
+        # Assign status based on progress
+        if progress_frac >= 0.95:
+            goal_status = "Completed"
+        elif progress_frac >= 0.6:
+            goal_status = "On Track"
+        elif progress_frac >= 0.35:
+            goal_status = "In Progress"
+        else:
+            goal_status = "At Risk"
+
         deadline = _random_date(date(2025, 6, 1), date(2026, 12, 31))
-        statuses = ["In Progress", "On Track", "Completed", "At Risk"]
         cur.execute(
             """INSERT INTO environmental_goals
                    (title, department_id, target_metric, target_value, current_value, deadline, status)
@@ -584,7 +601,7 @@ def seed(conn):
                 target_val,
                 current_val,
                 _ts(deadline),
-                random.choice(statuses),
+                goal_status,
             ),
         )
         eg_count += 1

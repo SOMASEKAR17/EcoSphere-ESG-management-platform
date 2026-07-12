@@ -26,7 +26,7 @@ def list_emission_factors(db: Session = Depends(get_db), _: Employee = Depends(g
 
 
 @router.post("/emission-factors", response_model=EmissionFactorOut, status_code=201)
-def create_emission_factor(payload: EmissionFactorCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_emission_factor(payload: EmissionFactorCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     factor = EmissionFactor(**payload.model_dump())
     db.add(factor)
     db.commit()
@@ -35,7 +35,7 @@ def create_emission_factor(payload: EmissionFactorCreate, db: Session = Depends(
 
 
 @router.put("/emission-factors/{factor_id}", response_model=EmissionFactorOut)
-def update_emission_factor(factor_id: int, payload: EmissionFactorUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_emission_factor(factor_id: int, payload: EmissionFactorUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     factor = db.get(EmissionFactor, factor_id)
     if not factor:
         raise not_found("Emission factor not found.")
@@ -47,7 +47,7 @@ def update_emission_factor(factor_id: int, payload: EmissionFactorUpdate, db: Se
 
 
 @router.delete("/emission-factors/{factor_id}")
-def delete_emission_factor(factor_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_emission_factor(factor_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     factor = db.get(EmissionFactor, factor_id)
     if not factor:
         raise not_found("Emission factor not found.")
@@ -89,6 +89,8 @@ def list_carbon_transactions(
     department_id: Optional[int] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _: Employee = Depends(get_current_employee),
 ):
@@ -99,12 +101,12 @@ def list_carbon_transactions(
         query = query.filter(CarbonTransaction.transaction_date >= date_from)
     if date_to:
         query = query.filter(CarbonTransaction.transaction_date <= date_to)
-    return query.order_by(CarbonTransaction.transaction_date.desc()).all()
+    return query.order_by(CarbonTransaction.transaction_date.desc()).offset(offset).limit(limit).all()
 
 
 @router.post("/carbon-transactions", response_model=CarbonTransactionOut, status_code=201)
-def create_carbon_transaction(payload: CarbonTransactionCreate, db: Session = Depends(get_db), admin: Employee = Depends(require_admin)):
-    return _create_transaction(db, payload.model_dump(), logged_by=admin.id)
+def create_carbon_transaction(payload: CarbonTransactionCreate, db: Session = Depends(get_db), employee: Employee = Depends(get_current_employee)):
+    return _create_transaction(db, payload.model_dump(), logged_by=employee.id)
 
 
 @router.get("/carbon-transactions/{transaction_id}", response_model=CarbonTransactionOut)
@@ -116,13 +118,13 @@ def get_carbon_transaction(transaction_id: int, db: Session = Depends(get_db), _
 
 
 @router.post("/carbon-transactions/auto-generate", response_model=CarbonTransactionOut, status_code=201)
-def auto_generate_carbon_transaction(payload: CarbonTransactionAutoGenerate, db: Session = Depends(get_db), admin: Employee = Depends(require_admin)):
+def auto_generate_carbon_transaction(payload: CarbonTransactionAutoGenerate, db: Session = Depends(get_db), employee: Employee = Depends(get_current_employee)):
     """Simulated auto-calc path (see build reference Section 12.3): accepts
     a simplified 'operational activity' payload and performs the calculation
     without a human typing the CO2 number directly. This is a documented
     scope cut standing in for a full Purchase/Manufacturing/Expense/Fleet
     source-record pipeline, which is out of scope for this build."""
-    return _create_transaction(db, payload.model_dump(), logged_by=admin.id)
+    return _create_transaction(db, payload.model_dump(), logged_by=employee.id)
 
 
 # ---- Environmental Goals ---------------------------------------------------
@@ -135,7 +137,7 @@ def list_environmental_goals(department_id: Optional[int] = Query(default=None),
 
 
 @router.post("/environmental-goals", response_model=EnvironmentalGoalOut, status_code=201)
-def create_environmental_goal(payload: EnvironmentalGoalCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_environmental_goal(payload: EnvironmentalGoalCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     goal = EnvironmentalGoal(**payload.model_dump())
     db.add(goal)
     db.commit()
@@ -145,7 +147,7 @@ def create_environmental_goal(payload: EnvironmentalGoalCreate, db: Session = De
 
 
 @router.put("/environmental-goals/{goal_id}", response_model=EnvironmentalGoalOut)
-def update_environmental_goal(goal_id: int, payload: EnvironmentalGoalUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_environmental_goal(goal_id: int, payload: EnvironmentalGoalUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     goal = db.get(EnvironmentalGoal, goal_id)
     if not goal:
         raise not_found("Environmental goal not found.")
@@ -158,7 +160,7 @@ def update_environmental_goal(goal_id: int, payload: EnvironmentalGoalUpdate, db
 
 
 @router.delete("/environmental-goals/{goal_id}")
-def delete_environmental_goal(goal_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_environmental_goal(goal_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     goal = db.get(EnvironmentalGoal, goal_id)
     if not goal:
         raise not_found("Environmental goal not found.")
