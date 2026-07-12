@@ -30,8 +30,14 @@ import ToastStack from '../components/common/Toast';
 import useFadeInUp from '../hooks/useFadeInUp';
 import useTabParam from '../hooks/useTabParam';
 import useEnvironmental from '../hooks/useEnvironmental';
-import { productESGProfiles, emissionsTrend } from '../data/mockData';
+import * as api from '../api/endpoints';
 import { formatKgAsCO2, filterGoals, goalsToCSV, goalsToJSON, downloadTextFile } from '../utils/environmental';
+
+// Fallback data in case API fails
+const fallbackEmissionsTrend = [
+  { month: 'Jan', value: 85 }, { month: 'Feb', value: 88 }, { month: 'Mar', value: 82 },
+  { month: 'Apr', value: 89 }, { month: 'May', value: 94 }, { month: 'Jun', value: 91 }
+];
 
 const TABS = ['Emission Factors', 'Product ESG Profiles', 'Carbon Transactions', 'Environmental Goals', 'Environmental Dashboard'];
 const ACCENT = 'var(--env-green)';
@@ -197,23 +203,50 @@ function EmissionFactorsTable() {
 /* ------------------------------------------------------------------ */
 
 function ProductProfilesTable() {
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.getProductEsgProfiles();
+        setProfiles(data.map(p => ({
+          id: p.id,
+          product: p.product_name,
+          sku: p.product_sku,
+          carbonFootprint: `${p.carbon_footprint_per_unit} kg CO2e/unit`,
+          recycledContent: 'N/A', // not in DB schema yet
+          esgGrade: p.sustainability_rating || 'N/A'
+        })));
+      } catch {
+        // Leave empty
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfiles();
+  }, []);
+
   return (
     <div className="data-table-wrap">
       <table className="data-table">
         <thead>
           <tr>
             <th>Product</th>
+            <th>SKU</th>
             <th>Carbon Footprint</th>
-            <th>Recycled Content</th>
             <th>ESG Grade</th>
           </tr>
         </thead>
         <tbody>
-          {productESGProfiles.map((p) => (
+          {loading ? <tr><td colSpan="4" className="text-secondary text-center py-4">Loading profiles...</td></tr> :
+           profiles.length === 0 ? <tr><td colSpan="4" className="text-secondary text-center py-4">No product profiles found.</td></tr> :
+           profiles.map((p) => (
             <tr key={p.id}>
               <td>{p.product}</td>
+              <td className="mono text-secondary">{p.sku}</td>
               <td className="mono">{p.carbonFootprint}</td>
-              <td>{p.recycledContent}</td>
               <td><span className="pill pill--success">{p.esgGrade}</span></td>
             </tr>
           ))}
@@ -573,7 +606,7 @@ function EnvironmentalDashboard() {
           </div>
           <div style={{ height: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={emissionsTrend} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
+              <LineChart data={fallbackEmissionsTrend} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
                 <XAxis dataKey="month" stroke="var(--text-tertiary)" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}

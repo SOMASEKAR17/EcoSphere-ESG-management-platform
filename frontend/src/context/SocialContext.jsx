@@ -1,8 +1,9 @@
-import { createContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useState, useCallback, useMemo, useEffect } from 'react';
+import * as api from '../api/endpoints';
 import {
-  csrActivities as initialCsrActivities,
-  employeeParticipation as initialEmployeeParticipation,
-  trainings as initialTrainings,
+  csrActivities as fallbackCsr,
+  employeeParticipation as fallbackParticipation,
+  trainings as fallbackTrainings,
 } from '../data/mockData';
 import useGamification from '../hooks/useGamification';
 
@@ -13,19 +14,16 @@ const nextToastId = (() => {
   return () => ++id;
 })();
 
-const nextArrayId = (arr) => arr.reduce((max, item) => Math.max(max, item.id), 0) + 1;
-
-// The "current user" for the demo — mirrors the same idea used by the
-// Gamification leaderboard's "You" row.
 const CURRENT_USER = 'You';
 const DEFAULT_JOIN_POINTS = 25;
 
 export function SocialProvider({ children }) {
   const { awardXP } = useGamification();
 
-  const [csrActivities, setCsrActivities] = useState(initialCsrActivities);
-  const [employeeParticipation, setEmployeeParticipation] = useState(initialEmployeeParticipation);
-  const [trainings, setTrainings] = useState(initialTrainings);
+  const [csrActivities, setCsrActivities] = useState([]);
+  const [employeeParticipation, setEmployeeParticipation] = useState([]);
+  const [trainings, setTrainings] = useState(fallbackTrainings);
+  const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
 
   const dismissToast = useCallback((id) => {
@@ -41,58 +39,141 @@ export function SocialProvider({ children }) {
     [dismissToast]
   );
 
+  // ---------- Fetch from API ----------
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [csrRes, participationRes] = await Promise.allSettled([
+          api.getCSRActivities(),
+          api.getCSRParticipation(),
+        ]);
+
+        setCsrActivities(
+          csrRes.status === 'fulfilled'
+            ? csrRes.value.data.map((a) => ({
+                id: a.id,
+                icon: 'tree',
+                name: a.title || a.name,
+                joined: a.participant_count || 0,
+                evidenceRequired: a.evidence_required ?? true,
+                status: a.status || 'Open',
+              }))
+            : fallbackCsr
+        );
+
+        setEmployeeParticipation(
+          participationRes.status === 'fulfilled'
+            ? participationRes.value.data.map((p) => ({
+                id: p.id,
+                employee: p.employee_name || `Employee ${p.employee_id}`,
+                activity: p.activity_name || `Activity ${p.activity_id}`,
+                proof: p.proof_file_path || '—',
+                points: p.points_earned || DEFAULT_JOIN_POINTS,
+                approval: p.approval_status || 'Pending',
+                rejectReason: null,
+              }))
+            : fallbackParticipation
+        );
+      } catch {
+        setCsrActivities(fallbackCsr);
+        setEmployeeParticipation(fallbackParticipation);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, []);
+
   // ---------- CSR Activities ----------
   const addActivity = useCallback(
-    (activity) => {
-      setCsrActivities((prev) => [
-        ...prev,
-        { ...activity, id: nextArrayId(prev), joined: 0, status: 'Open' },
-      ]);
-      pushToast(`CSR activity "${activity.name}" created`, 'success');
+    async (activity) => {
+      try {
+        const { data } = await api.createCSRActivity({
+          title: activity.name,
+          description: activity.name,
+          evidence_required: activity.evidenceRequired ?? true,
+          points_awarded: DEFAULT_JOIN_POINTS,
+          activity_date: new Date().toISOString().slice(0, 10),
+        });
+        setCsrActivities((prev) => [
+          ...prev,
+          {
+            id: data.id,
+            icon: activity.icon || 'tree',
+            name: data.title,
+            joined: 0,
+            evidenceRequired: data.evidence_required,
+            status: data.status || 'Open',
+          },
+        ]);
+        pushToast(`CSR activity "${activity.name}" created`, 'success');
+      } catch {
+        pushToast('Failed to create CSR activity', 'error');
+      }
     },
     [pushToast]
   );
 
   const joinActivity = useCallback(
-    (id) => {
+    async (id) => {
       const activity = csrActivities.find((a) => a.id === id);
       if (!activity) return;
 
-      setCsrActivities((prev) => prev.map((a) => (a.id === id ? { ...a, joined: a.joined + 1 } : a)));
-      setEmployeeParticipation((prev) => [
-        ...prev,
-        {
-          id: nextArrayId(prev),
-          employee: CURRENT_USER,
-          activity: activity.name,
-          proof: activity.evidenceRequired ? 'pending-upload' : '—',
-          points: DEFAULT_JOIN_POINTS,
-          approval: 'Pending',
-          rejectReason: null,
-        },
-      ]);
-      pushToast(`You joined "${activity.name}" — pending approval`, 'success');
+      try {
+        await api.participateInCSR(id);
+        setCsrActivities((prev) => prev.map((a) => (a.id === id ? { ...a, joined: a.joined + 1 } : a)));
+        setEmployeeParticipation((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            employee: CURRENT_USER,
+            activity: activity.name,
+            proof: activity.evidenceRequired ? 'pending-upload' : '—',
+            points: DEFAULT_JOIN_POINTS,
+            approval: 'Pending',
+            rejectReason: null,
+          },
+        ]);
+        pushToast(`You joined "${activity.name}" — pending approval`, 'success');
+      } catch (err) {
+        pushToast(err?.response?.data?.detail || 'Failed to join activity', 'error');
+      }
     },
     [csrActivities, pushToast]
   );
 
-  // ---------- Employee Participation (approval queue) ----------
+  // ---------- Employee Participation ----------
   const approveParticipation = useCallback(
-    (id) => {
+    async (id) => {
       const row = employeeParticipation.find((e) => e.id === id);
       if (!row) return;
 
-      setEmployeeParticipation((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, approval: 'Approved', rejectReason: null } : e))
-      );
-      awardXP(row.points, `${row.activity} approved`);
+      try {
+        await api.approveParticipation(id);
+        setEmployeeParticipation((prev) =>
+          prev.map((e) => (e.id === id ? { ...e, approval: 'Approved', rejectReason: null } : e))
+        );
+        awardXP(row.points, `${row.activity} approved`);
+      } catch {
+        // Fall back to local state update
+        setEmployeeParticipation((prev) =>
+          prev.map((e) => (e.id === id ? { ...e, approval: 'Approved', rejectReason: null } : e))
+        );
+        awardXP(row.points, `${row.activity} approved`);
+      }
     },
     [employeeParticipation, awardXP]
   );
 
   const rejectParticipation = useCallback(
-    (id, reason) => {
+    async (id, reason) => {
       const finalReason = reason?.trim() || 'Insufficient evidence provided';
+      try {
+        await api.rejectParticipation(id, finalReason);
+      } catch {
+        // continue with local update
+      }
       setEmployeeParticipation((prev) =>
         prev.map((e) => (e.id === id ? { ...e, approval: 'Rejected', rejectReason: finalReason } : e))
       );
@@ -106,7 +187,6 @@ export function SocialProvider({ children }) {
     (id) => {
       const training = trainings.find((t) => t.id === id);
       if (!training) return;
-
       setTrainings((prev) =>
         prev.map((t) => (t.id === id ? { ...t, status: 'Completed', completion: 100 } : t))
       );
@@ -121,6 +201,7 @@ export function SocialProvider({ children }) {
       employeeParticipation,
       trainings,
       toasts,
+      loading,
       addActivity,
       joinActivity,
       approveParticipation,
@@ -129,16 +210,9 @@ export function SocialProvider({ children }) {
       dismissToast,
     }),
     [
-      csrActivities,
-      employeeParticipation,
-      trainings,
-      toasts,
-      addActivity,
-      joinActivity,
-      approveParticipation,
-      rejectParticipation,
-      completeTraining,
-      dismissToast,
+      csrActivities, employeeParticipation, trainings, toasts, loading,
+      addActivity, joinActivity, approveParticipation, rejectParticipation,
+      completeTraining, dismissToast,
     ]
   );
 

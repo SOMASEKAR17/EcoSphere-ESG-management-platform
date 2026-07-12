@@ -1,0 +1,117 @@
+###############################################################################
+# EcoSphere ESG Management Platform — Unified Docker Compose
+#
+# Brings up all three services on a single shared network:
+#   1. ecosphere-db       → PostgreSQL 15 (schema auto-loaded via init.sql)
+#   2. ecosphere-backend  → FastAPI / Uvicorn (waits for healthy DB)
+#   3. ecosphere-frontend → Vite build served by Nginx (proxies /api → backend)
+#
+# Usage:
+#   docker compose up --build         # foreground (see all logs)
+#   docker compose up --build -d      # detached
+#   docker compose down -v            # tear down, including named volume
+#
+# After first boot, seed the database:
+#   docker compose exec ecosphere-db psql -U esg_admin -d ecosphere_operational
+#   — or run the seeder from your host:
+#   cd database && python seed_database.py
+#
+# Host-accessible ports:
+#   http://localhost:8080  → Frontend (Nginx)
+#   http://localhost:8000  → Backend  (FastAPI / Swagger at /docs)
+#   localhost:5430         → PostgreSQL (direct access for tooling)
+###############################################################################
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. DATABASE
+  # ──────────────────────────────────────────────────────────────────────────
+  ecosphere-db:
+    image: postgres:15-alpine
+    container_name: ecosphere_postgres
+    environment:
+      POSTGRES_USER: esg_admin
+      POSTGRES_PASSWORD: esg_secure_password
+      POSTGRES_DB: ecosphere_operational
+    ports:
+      - "5430:5432"
+    volumes:
+      - ecosphere_db_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esg_admin -d ecosphere_operational"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: always
+    networks:
+      - ecosphere_network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. BACKEND
+  # ──────────────────────────────────────────────────────────────────────────
+  ecosphere-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecosphere_backend
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override DATABASE_URL so it resolves via the Docker network
+      # (container name + internal port), not localhost.
+      DATABASE_URL: postgresql://esg_admin:esg_secure_password@ecosphere_postgres:5432/ecosphere_operational
+      # CORS: allow the Nginx frontend container and local dev server
+      CORS_ALLOW_ORIGINS: "http://localhost:8080,http://localhost:5173,http://ecosphere_frontend"
+      FRONTEND_URL: "http://localhost:8080"
+      FRONTEND_OAUTH_SUCCESS_REDIRECT: "http://localhost:8080/auth/success"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      ecosphere-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: always
+    networks:
+      - ecosphere_network
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. FRONTEND
+  # ──────────────────────────────────────────────────────────────────────────
+  ecosphere-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Passed at build-time so Vite bakes the correct API base URL
+        # into the static JS bundle. At runtime Nginx reverse-proxies
+        # /api/* requests to the backend container.
+        VITE_API_BASE_URL: "/api"
+    image: ecosphere-esg-app:latest
+    container_name: ecosphere_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      ecosphere-backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ecosphere_network
+
+# ────────────────────────────────────────────────────────────────────────────
+volumes:
+  ecosphere_db_data:
+    driver: local
+
+networks:
+  ecosphere_network:
+    driver: bridge

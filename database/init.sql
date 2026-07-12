@@ -159,10 +159,11 @@ CREATE TABLE employees (
     last_name varchar(100) NOT NULL,
     email varchar(255) UNIQUE NOT NULL,
     avatar_url varchar(500),
+    password_hash varchar(255),
 
-    -- OAuth identity
-    oauth_provider oauth_provider_type NOT NULL,
-    oauth_provider_id varchar(255) NOT NULL,
+    -- OAuth identity (nullable for email/password users)
+    oauth_provider oauth_provider_type,
+    oauth_provider_id varchar(255),
     UNIQUE (oauth_provider, oauth_provider_id),
 
     department_id int

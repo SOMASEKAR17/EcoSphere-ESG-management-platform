@@ -7,6 +7,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Accept API base URL at build time (defaults to /api for Docker deployment)
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 # Copy the rest of the source and build the static bundle
 COPY . .
 RUN npm run build

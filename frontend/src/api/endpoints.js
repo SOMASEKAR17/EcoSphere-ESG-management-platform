@@ -1,74 +1,121 @@
 import apiClient from './client';
 
 /**
- * These functions are thin wrappers around the Axios instance.
- * Each mirrors a REST resource the real EcoSphere backend is expected to expose.
- * Until the backend is connected, calling components fall back to local mock
- * data (see src/data) so the UI stays fully functional in the meantime.
+ * API endpoint wrappers matching the actual backend router paths.
+ * All paths are relative to the apiClient baseURL (/api).
  */
 
-// ---------- Dashboard ----------
-export const getDashboardSummary = () => apiClient.get('/dashboard/summary');
+// ---------- Auth ----------
+export const login = (payload) => apiClient.post('/auth/login', payload);
+export const register = (payload) => apiClient.post('/auth/register', payload);
+export const devLogin = () => apiClient.post('/auth/dev-login');
+export const getMe = () => apiClient.get('/auth/me');
+export const logout = () => apiClient.post('/auth/logout');
+
+// ---------- Scores / Dashboard ----------
+export const getDepartmentScores = () => apiClient.get('/scores/departments');
+export const getOverallScore = () => apiClient.get('/scores/overall');
+export const getScoreTrend = (departmentId) =>
+  apiClient.get('/scores/trend', { params: departmentId ? { department_id: departmentId } : {} });
 
 // ---------- Environmental ----------
-export const getEmissionFactors = () => apiClient.get('/environmental/emission-factors');
-export const getProductESGProfiles = () => apiClient.get('/environmental/product-profiles');
-export const getCarbonTransactions = () => apiClient.get('/environmental/carbon-transactions');
-export const getEnvironmentalGoals = () => apiClient.get('/environmental/goals');
-export const createEnvironmentalGoal = (payload) => apiClient.post('/environmental/goals', payload);
-export const updateEnvironmentalGoal = (id, payload) => apiClient.put(`/environmental/goals/${id}`, payload);
-export const deleteEnvironmentalGoal = (id) => apiClient.delete(`/environmental/goals/${id}`);
+export const getEmissionFactors = () => apiClient.get('/emission-factors');
+export const createEmissionFactor = (payload) => apiClient.post('/emission-factors', payload);
+export const updateEmissionFactor = (id, payload) => apiClient.put(`/emission-factors/${id}`, payload);
+export const deleteEmissionFactor = (id) => apiClient.delete(`/emission-factors/${id}`);
+
+export const getProductEsgProfiles = () => apiClient.get('/product-esg-profiles');
+export const createProductEsgProfile = (payload) => apiClient.post('/product-esg-profiles', payload);
+
+export const getCarbonTransactions = (params) => apiClient.get('/carbon-transactions', { params });
+export const createCarbonTransaction = (payload) => apiClient.post('/carbon-transactions', payload);
+export const autoGenerateCarbonTransaction = (payload) => apiClient.post('/carbon-transactions/auto-generate', payload);
+
+export const getEnvironmentalGoals = (departmentId) =>
+  apiClient.get('/environmental-goals', { params: departmentId ? { department_id: departmentId } : {} });
+export const createEnvironmentalGoal = (payload) => apiClient.post('/environmental-goals', payload);
+export const updateEnvironmentalGoal = (id, payload) => apiClient.put(`/environmental-goals/${id}`, payload);
+export const deleteEnvironmentalGoal = (id) => apiClient.delete(`/environmental-goals/${id}`);
 
 // ---------- Social ----------
-export const getCSRActivities = () => apiClient.get('/social/csr-activities');
-export const createCSRActivity = (payload) => apiClient.post('/social/csr-activities', payload);
-export const joinCSRActivity = (id) => apiClient.post(`/social/csr-activities/${id}/join`);
-export const getEmployeeParticipation = () => apiClient.get('/social/employee-participation');
-export const approveParticipation = (id) => apiClient.post(`/social/employee-participation/${id}/approve`);
-export const rejectParticipation = (id, reason) => apiClient.post(`/social/employee-participation/${id}/reject`, { reason });
-export const getDiversityDashboard = () => apiClient.get('/social/diversity-dashboard');
-export const getTrainings = () => apiClient.get('/social/trainings');
-export const completeTraining = (id) => apiClient.post(`/social/trainings/${id}/complete`);
+export const getCSRActivities = () => apiClient.get('/csr-activities');
+export const createCSRActivity = (payload) => apiClient.post('/csr-activities', payload);
+export const updateCSRActivity = (id, payload) => apiClient.put(`/csr-activities/${id}`, payload);
+export const participateInCSR = (id, proofFile) => {
+  if (proofFile) {
+    const formData = new FormData();
+    formData.append('proof_file', proofFile);
+    return apiClient.post(`/csr-activities/${id}/participate`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return apiClient.post(`/csr-activities/${id}/participate`);
+};
+
+export const getCSRParticipation = (status) =>
+  apiClient.get('/csr-participation', { params: status ? { status } : {} });
+export const approveParticipation = (id) => apiClient.put(`/csr-participation/${id}/approve`);
+export const rejectParticipation = (id, reason) =>
+  apiClient.put(`/csr-participation/${id}/reject`, { reason });
+
+export const getDiversityMetrics = (departmentId) =>
+  apiClient.get('/diversity-metrics', { params: departmentId ? { department_id: departmentId } : {} });
 
 // ---------- Governance ----------
-export const getPolicies = () => apiClient.get('/governance/policies');
-export const createPolicy = (payload) => apiClient.post('/governance/policies', payload);
-export const createPolicyVersion = (id) => apiClient.post(`/governance/policies/${id}/version`);
-export const getPolicyAcknowledgements = () => apiClient.get('/governance/policy-acknowledgements');
-export const acknowledgePolicy = (deptRowId, employeeId) =>
-  apiClient.post(`/governance/policy-acknowledgements/${deptRowId}/acknowledge`, { employeeId });
-export const sendAcknowledgementReminder = (deptRowId) =>
-  apiClient.post(`/governance/policy-acknowledgements/${deptRowId}/remind`);
-export const getAudits = () => apiClient.get('/governance/audits');
-export const createAudit = (payload) => apiClient.post('/governance/audits', payload);
-export const advanceAuditStatus = (id) => apiClient.post(`/governance/audits/${id}/advance`);
-export const getComplianceIssues = () => apiClient.get('/governance/compliance-issues');
-export const raiseComplianceIssue = (auditId, payload) =>
-  apiClient.post(`/governance/audits/${auditId}/issues`, payload);
-export const resolveComplianceIssue = (id) => apiClient.post(`/governance/compliance-issues/${id}/resolve`);
+export const getPolicies = () => apiClient.get('/policies');
+export const createPolicy = (payload) => apiClient.post('/policies', payload);
+export const updatePolicy = (id, payload) => apiClient.put(`/policies/${id}`, payload);
+export const acknowledgePolicy = (policyId) => apiClient.post(`/policies/${policyId}/acknowledge`);
+export const getPolicyAcknowledgements = () => apiClient.get('/policy-acknowledgements');
+
+export const getAudits = () => apiClient.get('/audits');
+export const createAudit = (payload) => apiClient.post('/audits', payload);
+export const updateAudit = (id, payload) => apiClient.put(`/audits/${id}`, payload);
+
+export const getComplianceIssues = () => apiClient.get('/compliance-issues');
+export const createComplianceIssue = (payload) => apiClient.post('/compliance-issues', payload);
+export const updateComplianceIssue = (id, payload) => apiClient.put(`/compliance-issues/${id}`, payload);
 
 // ---------- Gamification ----------
-export const getChallenges = () => apiClient.get('/gamification/challenges');
-export const createChallenge = (payload) => apiClient.post('/gamification/challenges', payload);
-export const joinChallenge = (id) => apiClient.post(`/gamification/challenges/${id}/join`);
-export const getChallengeParticipation = () => apiClient.get('/gamification/challenge-participation');
-export const getBadges = () => apiClient.get('/gamification/badges');
-export const getRewards = () => apiClient.get('/gamification/rewards');
-export const getLeaderboard = () => apiClient.get('/gamification/leaderboard');
+export const getChallenges = (status) =>
+  apiClient.get('/challenges', { params: status ? { status } : {} });
+export const createChallenge = (payload) => apiClient.post('/challenges', payload);
+export const updateChallenge = (id, payload) => apiClient.put(`/challenges/${id}`, payload);
+export const joinChallenge = (id) => apiClient.post(`/challenges/${id}/join`);
 
-// ---------- Reports ----------
-export const generateReport = (type, filters) => apiClient.post(`/reports/${type}/generate`, filters);
-export const runCustomReport = (filters) => apiClient.post('/reports/custom/run', filters);
-export const exportReport = (type, format, filters) =>
-  apiClient.post(`/reports/${type}/export/${format}`, filters, { responseType: 'blob' });
+export const getChallengeParticipation = (status) =>
+  apiClient.get('/challenge-participation', { params: status ? { status } : {} });
+export const approveChallengeParticipation = (id) =>
+  apiClient.put(`/challenge-participation/${id}/approve`);
+
+export const getBadges = () => apiClient.get('/badges');
+export const getMyBadges = () => apiClient.get('/badges/me');
+
+export const getRewards = () => apiClient.get('/rewards');
+export const redeemReward = (id) => apiClient.post(`/rewards/${id}/redeem`);
+export const getMyRedemptions = () => apiClient.get('/rewards/redemptions/me');
+
+export const getLeaderboard = () => apiClient.get('/leaderboard');
+
+// ---------- Departments & Categories ----------
+export const getDepartments = () => apiClient.get('/departments');
+export const createDepartment = (payload) => apiClient.post('/departments', payload);
+export const updateDepartment = (id, payload) => apiClient.put(`/departments/${id}`, payload);
+export const deleteDepartment = (id) => apiClient.delete(`/departments/${id}`);
+
+export const getCategories = (type) =>
+  apiClient.get('/categories', { params: type ? { type } : {} });
 
 // ---------- Settings ----------
-export const getDepartments = () => apiClient.get('/settings/departments');
-export const createDepartment = (payload) => apiClient.post('/settings/departments', payload);
-export const updateDepartment = (id, payload) => apiClient.put(`/settings/departments/${id}`, payload);
-export const deleteDepartment = (id) => apiClient.delete(`/settings/departments/${id}`);
-export const getCategories = () => apiClient.get('/settings/categories');
-export const getESGConfiguration = () => apiClient.get('/settings/esg-configuration');
-export const updateESGConfiguration = (payload) => apiClient.put('/settings/esg-configuration', payload);
-export const getNotificationSettings = () => apiClient.get('/settings/notifications');
-export const updateNotificationSettings = (payload) => apiClient.put('/settings/notifications', payload);
+export const getESGConfig = () => apiClient.get('/settings/config');
+export const updateESGConfig = (payload) => apiClient.put('/settings/config', payload);
+export const getNotificationPreferences = () => apiClient.get('/settings/notification-preferences');
+export const updateNotificationPreferences = (payload) =>
+  apiClient.put('/settings/notification-preferences', payload);
+
+// ---------- Employees ----------
+export const getEmployees = () => apiClient.get('/employees');
+
+// ---------- Notifications ----------
+export const getNotifications = () => apiClient.get('/notifications');
+export const markNotificationRead = (id) => apiClient.put(`/notifications/${id}/read`);
