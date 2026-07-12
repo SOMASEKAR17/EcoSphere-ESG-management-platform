@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  ecosphere-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecosphere_backend
+    env_file:
+      - .env
+    environment:
+      # Inside the shared docker network the DB is reached via its
+      # container name on its internal port (5432) — NOT localhost:5433,
+      # which only exists from the host machine's point of view.
+      DATABASE_URL: postgresql://esg_admin:esg_secure_password@ecosphere_postgres:5432/ecosphere_operational
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+    restart: always
+    networks:
+      - ecosphere_network
+
+networks:
+  ecosphere_network:
+    external: true
+    name: ecosphere_network
