@@ -1,7 +1,10 @@
-import { createContext, useState, useMemo, useCallback, useRef } from 'react';
-import { challenges as initialChallenges, badges as badgeCatalog, initialUserStats } from '../data/mockData';
-import { evaluateBadges, getNewlyEarnedBadges } from '../utils/gamification';
-import useSettings from '../hooks/useSettings';
+import { createContext, useState, useCallback, useMemo, useEffect } from 'react';
+import * as api from '../api/endpoints';
+import {
+  challenges as fallbackChallenges,
+  badges as fallbackBadges,
+  rewards as fallbackRewards,
+} from '../data/mockData';
 
 export const GamificationContext = createContext(null);
 
@@ -11,12 +14,15 @@ const nextToastId = (() => {
 })();
 
 export function GamificationProvider({ children }) {
-  const { isEnabled } = useSettings();
-  const autoAwardBadges = isEnabled('autoBadges');
+  const [xp, setXp] = useState(0);
+  const [points, setPoints] = useState(0);
+  const [level, setLevel] = useState(1);
 
-  const [challenges, setChallenges] = useState(initialChallenges);
-  const [userStats, setUserStats] = useState(initialUserStats);
-  const [redemptions, setRedemptions] = useState([]);
+  const [challenges, setChallenges] = useState([]);
+  const [badges, setBadges] = useState([]);
+  const [rewards, setRewards] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
 
   const dismissToast = useCallback((id) => {
@@ -32,116 +38,145 @@ export function GamificationProvider({ children }) {
     [dismissToast]
   );
 
-  // Kept in a ref so the "before" badge snapshot used for unlock detection
-  // doesn't need its own render-triggering state.
-  const prevBadgesRef = useRef(evaluateBadges(initialUserStats, badgeCatalog));
+  // ---------- Fetch from API ----------
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [meRes, challengesRes, badgesRes, rewardsRes, leaderboardRes] = await Promise.allSettled([
+          api.getMe(),
+          api.getChallenges(),
+          api.getMyBadges(),
+          api.getRewards(),
+          api.getLeaderboard(),
+        ]);
 
-  const badges = useMemo(() => evaluateBadges(userStats, badgeCatalog), [userStats]);
+        if (meRes.status === 'fulfilled') {
+          setXp(meRes.value.data.xp_balance || 0);
+          setPoints(meRes.value.data.points_balance || 0);
+          setLevel(Math.floor((meRes.value.data.xp_balance || 0) / 100) + 1);
+        }
 
-  const checkForNewlyUnlockedBadges = useCallback(
-    (nextStats) => {
-      const nextBadges = evaluateBadges(nextStats, badgeCatalog);
-      const newlyEarned = getNewlyEarnedBadges(prevBadgesRef.current, nextBadges);
-      prevBadgesRef.current = nextBadges;
+        setChallenges(
+          challengesRes.status === 'fulfilled'
+            ? challengesRes.value.data.map((c) => ({
+                id: c.id,
+                title: c.title,
+                description: c.description,
+                xp: c.xp_reward,
+                points: c.xp_reward,
+                progress: 0, // Should be joined from participation, but simplifying for frontend
+                status: c.status || 'Active',
+                deadline: c.deadline,
+              }))
+            : fallbackChallenges
+        );
 
-      if (autoAwardBadges) {
-        newlyEarned.forEach((badge) => pushToast(`Badge unlocked: ${badge.name}!`, 'badge'));
+        setBadges(
+          badgesRes.status === 'fulfilled'
+            ? badgesRes.value.data.map((b) => ({
+                id: b.badge_id,
+                name: b.badge?.name || 'Badge',
+                description: b.badge?.description || '',
+                icon: b.badge?.icon_url || 'award',
+                unlockedAt: b.awarded_at,
+              }))
+            : fallbackBadges.filter((b) => b.unlocked)
+        );
+
+        setRewards(
+          rewardsRes.status === 'fulfilled'
+            ? rewardsRes.value.data.map((r) => ({
+                id: r.id,
+                name: r.name,
+                description: r.description,
+                pointsRequired: r.points_required,
+                icon: 'gift',
+                stock: r.stock_count,
+              }))
+            : fallbackRewards
+        );
+
+        setLeaderboard(
+          leaderboardRes.status === 'fulfilled'
+            ? leaderboardRes.value.data.map((l) => ({
+                rank: l.rank,
+                name: `${l.first_name} ${l.last_name}`,
+                score: l.xp_balance,
+                department: `Dept ${l.department_id}`,
+                isCurrentUser: false, // Could map via meRes ID
+              }))
+            : []
+        );
+      } catch {
+        setChallenges(fallbackChallenges);
+        setBadges(fallbackBadges);
+        setRewards(fallbackRewards);
+      } finally {
+        setLoading(false);
       }
-    },
-    [autoAwardBadges, pushToast]
-  );
+    };
+    fetchAll();
+  }, []);
 
-  const setChallengeStatus = useCallback(
-    (id, status) => {
-      setChallenges((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
-    },
-    []
-  );
-
-  const activateChallenge = useCallback((id) => setChallengeStatus(id, 'Active'), [setChallengeStatus]);
-  const submitForReview = useCallback((id) => setChallengeStatus(id, 'Under Review'), [setChallengeStatus]);
-  const archiveChallenge = useCallback((id) => setChallengeStatus(id, 'Archived'), [setChallengeStatus]);
-
-  const approveAndComplete = useCallback(
-    (id) => {
-      const challenge = challenges.find((c) => c.id === id);
-      if (!challenge) return;
-
-      setChallengeStatus(id, 'Completed');
-
-      const nextStats = {
-        totalXP: userStats.totalXP + challenge.xp,
-        completedChallenges: userStats.completedChallenges + 1,
-      };
-      setUserStats(nextStats);
-      checkForNewlyUnlockedBadges(nextStats);
-      pushToast(`"${challenge.name}" completed — +${challenge.xp} XP`, 'success');
-    },
-    [challenges, userStats, setChallengeStatus, checkForNewlyUnlockedBadges, pushToast]
-  );
-
-  // Generic XP award used by other modules (e.g. Social CSR/Training approvals)
-  // so the demo can show a cross-module moment without those modules owning
-  // XP/badge logic themselves.
   const awardXP = useCallback(
-    (amount, label) => {
-      if (!amount) return;
-      const nextStats = { ...userStats, totalXP: userStats.totalXP + amount };
-      setUserStats(nextStats);
-      checkForNewlyUnlockedBadges(nextStats);
-      pushToast(`+${amount} XP${label ? ` — ${label}` : ''}`, 'success');
+    (amount, reason) => {
+      setXp((prev) => {
+        const next = prev + amount;
+        const newLevel = Math.floor(next / 100) + 1;
+        if (newLevel > Math.floor(prev / 100) + 1) {
+          pushToast(`Level Up! You are now Level ${newLevel} 🎉`, 'badge');
+          setLevel(newLevel);
+        }
+        return next;
+      });
+      setPoints((prev) => prev + amount); // Simulating 1 XP = 1 Point
+      pushToast(`+${amount} XP: ${reason}`, 'badge');
     },
-    [userStats, checkForNewlyUnlockedBadges, pushToast]
+    [pushToast]
   );
 
   const redeemReward = useCallback(
-    (reward) => {
-      if (userStats.totalXP < reward.xpCost) {
-        pushToast(`Not enough XP to redeem ${reward.name}`, 'error');
-        return false;
+    async (reward) => {
+      try {
+        await api.redeemReward(reward.id);
+        setPoints((prev) => prev - reward.pointsRequired);
+        setRewards((prev) =>
+          prev.map((r) => (r.id === reward.id ? { ...r, stock: r.stock - 1 } : r))
+        );
+        pushToast(`Redeemed "${reward.name}"!`, 'badge');
+      } catch (err) {
+        pushToast(err?.response?.data?.detail || 'Failed to redeem reward', 'error');
       }
-
-      setUserStats((prev) => ({ ...prev, totalXP: prev.totalXP - reward.xpCost }));
-      setRedemptions((prev) => [
-        { id: `${reward.id}-${Date.now()}`, name: reward.name, date: new Date().toLocaleDateString() },
-        ...prev,
-      ]);
-      pushToast(`Redeemed: ${reward.name}`, 'success');
-      return true;
     },
-    [userStats, pushToast]
+    [pushToast]
+  );
+
+  const joinChallenge = useCallback(
+    async (id) => {
+      try {
+        await api.joinChallenge(id);
+        setChallenges((prev) => prev.map((c) => (c.id === id ? { ...c, progress: 1 } : c)));
+        pushToast('Joined challenge!', 'badge');
+      } catch (err) {
+        pushToast(err?.response?.data?.detail || 'Failed to join challenge', 'error');
+      }
+    },
+    [pushToast]
   );
 
   const value = useMemo(
     () => ({
-      challenges,
-      userStats,
-      badges,
-      redemptions,
-      toasts,
-      autoAwardBadges,
-      activateChallenge,
-      submitForReview,
-      approveAndComplete,
-      archiveChallenge,
-      redeemReward,
-      awardXP,
-      dismissToast,
+      xp, points, level,
+      challenges, badges, rewards, leaderboard,
+      loading, toasts, dismissToast,
+      awardXP, redeemReward, joinChallenge,
     }),
     [
-      challenges,
-      userStats,
-      badges,
-      redemptions,
-      toasts,
-      autoAwardBadges,
-      activateChallenge,
-      submitForReview,
-      approveAndComplete,
-      archiveChallenge,
-      redeemReward,
-      awardXP,
-      dismissToast,
+      xp, points, level,
+      challenges, badges, rewards, leaderboard,
+      loading, toasts, dismissToast,
+      awardXP, redeemReward, joinChallenge,
     ]
   );
 
