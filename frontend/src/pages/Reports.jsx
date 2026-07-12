@@ -9,6 +9,7 @@ import useGovernance from '../hooks/useGovernance';
 import useSocial from '../hooks/useSocial';
 import { downloadTextFile, goalsToCSV, goalsToJSON } from '../utils/environmental';
 import { auditsToCSV, auditsToJSON } from '../utils/governance';
+import * as api from '../api/endpoints';
 
 const TABS = ['Environmental', 'Social', 'Governance', 'ESG Summary', 'Custom Builder'];
 
@@ -30,9 +31,32 @@ export default function Reports() {
   const { audits, complianceIssues, policies } = useGovernance();
   const { csrActivities, employeeParticipation, trainings } = useSocial();
 
-  const generateReport = useCallback((type) => {
+  const [customModule, setCustomModule] = useState('Environmental');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [loadingCustom, setLoadingCustom] = useState(false);
+
+  const generateReport = useCallback(async (type) => {
     let content = '';
     const timestamp = new Date().toLocaleString();
+
+    if (type === 'Custom Builder') {
+      setLoadingCustom(true);
+      try {
+        const payload = { module: customModule };
+        if (customDateFrom) payload.date_from = customDateFrom;
+        if (customDateTo) payload.date_to = customDateTo;
+        const res = await api.generateCustomReport(payload);
+        const data = res.data;
+        content = `CUSTOM REPORT: ${data.module}\nGenerated: ${timestamp}\nRows: ${data.row_count}\nFilters: ${JSON.stringify(data.filters_applied)}\n\n${JSON.stringify(data.rows, null, 2)}`;
+      } catch (err) {
+        content = `Error generating report: ${err.message}`;
+      } finally {
+        setLoadingCustom(false);
+      }
+      setGeneratedReport({ type, content });
+      return;
+    }
 
     switch (type) {
       case 'Environmental':
@@ -84,11 +108,16 @@ export default function Reports() {
         break;
 
       default:
-        content = `Custom report for "${type}" — coming soon.`;
+        content = `Report type not found.`;
     }
 
     setGeneratedReport({ type, content });
-  }, [emissionFactors, carbonTransactions, environmentalGoals, csrActivities, employeeParticipation, trainings, policies, audits, complianceIssues]);
+  }, [
+    customModule, customDateFrom, customDateTo,
+    emissionFactors, carbonTransactions, environmentalGoals, 
+    csrActivities, employeeParticipation, trainings, 
+    policies, audits, complianceIssues
+  ]);
 
   const handleExport = (format) => {
     if (!generatedReport) return;
@@ -195,23 +224,34 @@ export default function Reports() {
           <Wand2 size={16} color="var(--teal)" /> Custom Report Builder: Filters
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
-          {filters.map((f) => (
-            <button key={f} className="btn btn--ghost btn--sm">{f} <FaChevronDown size={10} /></button>
-          ))}
+        <div className="form-row" style={{ marginBottom: 18 }}>
+          <div className="form-field">
+            <label>Module</label>
+            <select value={customModule} onChange={(e) => setCustomModule(e.target.value)}>
+              <option value="Environmental">Environmental</option>
+              <option value="Social">Social</option>
+              <option value="Governance">Governance</option>
+              <option value="Gamification">Gamification</option>
+            </select>
+          </div>
+          <div className="form-field">
+            <label>Date From</label>
+            <input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} />
+          </div>
+          <div className="form-field">
+            <label>Date To</label>
+            <input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} />
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <button className="btn btn--teal" onClick={() => generateReport(tab)}>
-            <Play size={14} /> Run Report
+          <button className="btn btn--teal" onClick={() => generateReport('Custom Builder')} disabled={loadingCustom}>
+            <Play size={14} /> {loadingCustom ? 'Running...' : 'Run Report'}
           </button>
-          <button className="btn btn--ghost" onClick={() => handleExport('txt')} disabled={!generatedReport}>
+          <button className="btn btn--ghost" onClick={() => handleExport('txt')} disabled={!generatedReport || generatedReport.type !== 'Custom Builder'}>
             <FileDown size={14} /> Export: TXT
           </button>
-          <button className="btn btn--ghost" onClick={() => handleExport('csv')} disabled={!generatedReport}>
-            <FileSpreadsheet size={14} /> Export: CSV
-          </button>
-          <button className="btn btn--ghost" onClick={() => handleExport('json')} disabled={!generatedReport}>
+          <button className="btn btn--ghost" onClick={() => handleExport('json')} disabled={!generatedReport || generatedReport.type !== 'Custom Builder'}>
             <FileText size={14} /> Export: JSON
           </button>
         </div>

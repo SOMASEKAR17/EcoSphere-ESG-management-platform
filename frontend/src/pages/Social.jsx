@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Check, X, GraduationCap, Upload, FileText } from 'lucide-react';
 import { FaTree, FaDroplet, FaUmbrellaBeach, FaChalkboardUser } from 'react-icons/fa6';
 import {
@@ -253,6 +253,14 @@ function EmployeeParticipation() {
   const [rejectingId, setRejectingId] = useState(null);
   const [reason, setReason] = useState('');
 
+  const sortedParticipation = useMemo(() => {
+    return [...employeeParticipation].sort((a, b) => {
+      if (a.approval === 'Pending' && b.approval !== 'Pending') return -1;
+      if (a.approval !== 'Pending' && b.approval === 'Pending') return 1;
+      return 0;
+    });
+  }, [employeeParticipation]);
+
   const openReject = (id) => {
     setRejectingId(id);
     setReason('');
@@ -279,9 +287,9 @@ function EmployeeParticipation() {
             </tr>
           </thead>
           <tbody>
-            {employeeParticipation.length === 0 ? (
+            {sortedParticipation.length === 0 ? (
               <tr><td colSpan="6" className="text-secondary" style={{ textAlign: 'center', padding: 20 }}>No participation records found.</td></tr>
-            ) : employeeParticipation.map((e) => (
+            ) : sortedParticipation.map((e) => (
               <tr key={e.id}>
                 <td>{e.employee}</td>
                 <td>{e.activity}</td>

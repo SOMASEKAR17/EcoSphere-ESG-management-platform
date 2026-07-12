@@ -124,3 +124,6 @@ export const markAllNotificationsRead = () => apiClient.put('/notifications/read
 // ---------- Admin: Role Management ----------
 export const updateEmployeeRole = (employeeId, role) =>
   apiClient.put(`/auth/employees/${employeeId}/role`, { role });
+
+// ---------- Reports ----------
+export const generateCustomReport = (payload) => apiClient.post('/reports/custom', payload);
