@@ -1,0 +1,80 @@
+name: Backend PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+      - '!backend/**/*.md'
+      - '!backend/**/README.md'
+      - '!backend/**/readme.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies and tooling
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
+          if [ -f pyproject.toml ]; then
+            pip install .
+          fi
+          pip install ruff pytest
+
+      - name: Lint Python code
+        run: |
+          if find . -type f -name '*.py' | grep -q .; then
+            ruff check .
+          else
+            echo "No Python source files found; skipping lint."
+          fi
+
+      - name: Compile Python files
+        run: |
+          if find . -type f -name '*.py' | grep -q .; then
+            python -m compileall .
+          else
+            echo "No Python source files found; skipping compile."
+          fi
+
+      - name: Run tests if present
+        run: |
+          if [ -d tests ] || find . -type f -name 'test_*.py' | grep -q .; then
+            pytest -q
+          else
+            echo "No Python tests found; skipping pytest."
+          fi
+
+      - name: Smoke-check FastAPI entrypoints if present
+        run: |
+          if [ -f main.py ] || [ -f app/main.py ]; then
+            echo "FastAPI entrypoint detected; import validation will run when app dependencies are added."
+          else
+            echo "No FastAPI entrypoint detected; skipping smoke check."
+          fi
