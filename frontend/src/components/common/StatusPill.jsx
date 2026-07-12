@@ -13,6 +13,10 @@ const map = {
   high: 'critical',
   medium: 'warning',
   low: 'success',
+  scheduled: 'neutral',
+  'in progress': 'warning',
+  'not started': 'neutral',
+  overdue: 'critical',
 };
 
 export default function StatusPill({ status }) {
