@@ -23,7 +23,13 @@ export const navConfig = [
     path: '/environmental',
     icon: Leaf,
     color: 'var(--env-green)',
-    children: ['Emission Factors', 'Product ESG Profiles', 'Carbon Transactions', 'Environmental Goals'],
+    children: [
+      'Emission Factors',
+      'Product ESG Profiles',
+      'Carbon Transactions',
+      'Environmental Goals',
+      'Environmental Dashboard',
+    ],
   },
   {
     key: 'social',
@@ -31,7 +37,7 @@ export const navConfig = [
     path: '/social',
     icon: Users,
     color: 'var(--social-teal)',
-    children: ['CSR Activities', 'Employee Participation', 'Diversity Dashboard'],
+    children: ['CSR Activities', 'Employee Participation', 'Diversity Dashboard', 'Training Completion'],
   },
   {
     key: 'governance',

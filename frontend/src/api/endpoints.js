@@ -22,17 +22,30 @@ export const deleteEnvironmentalGoal = (id) => apiClient.delete(`/environmental/
 // ---------- Social ----------
 export const getCSRActivities = () => apiClient.get('/social/csr-activities');
 export const createCSRActivity = (payload) => apiClient.post('/social/csr-activities', payload);
+export const joinCSRActivity = (id) => apiClient.post(`/social/csr-activities/${id}/join`);
 export const getEmployeeParticipation = () => apiClient.get('/social/employee-participation');
 export const approveParticipation = (id) => apiClient.post(`/social/employee-participation/${id}/approve`);
-export const rejectParticipation = (id) => apiClient.post(`/social/employee-participation/${id}/reject`);
+export const rejectParticipation = (id, reason) => apiClient.post(`/social/employee-participation/${id}/reject`, { reason });
 export const getDiversityDashboard = () => apiClient.get('/social/diversity-dashboard');
+export const getTrainings = () => apiClient.get('/social/trainings');
+export const completeTraining = (id) => apiClient.post(`/social/trainings/${id}/complete`);
 
 // ---------- Governance ----------
 export const getPolicies = () => apiClient.get('/governance/policies');
+export const createPolicy = (payload) => apiClient.post('/governance/policies', payload);
+export const createPolicyVersion = (id) => apiClient.post(`/governance/policies/${id}/version`);
 export const getPolicyAcknowledgements = () => apiClient.get('/governance/policy-acknowledgements');
+export const acknowledgePolicy = (deptRowId, employeeId) =>
+  apiClient.post(`/governance/policy-acknowledgements/${deptRowId}/acknowledge`, { employeeId });
+export const sendAcknowledgementReminder = (deptRowId) =>
+  apiClient.post(`/governance/policy-acknowledgements/${deptRowId}/remind`);
 export const getAudits = () => apiClient.get('/governance/audits');
 export const createAudit = (payload) => apiClient.post('/governance/audits', payload);
+export const advanceAuditStatus = (id) => apiClient.post(`/governance/audits/${id}/advance`);
 export const getComplianceIssues = () => apiClient.get('/governance/compliance-issues');
+export const raiseComplianceIssue = (auditId, payload) =>
+  apiClient.post(`/governance/audits/${auditId}/issues`, payload);
+export const resolveComplianceIssue = (id) => apiClient.post(`/governance/compliance-issues/${id}/resolve`);
 
 // ---------- Gamification ----------
 export const getChallenges = () => apiClient.get('/gamification/challenges');
