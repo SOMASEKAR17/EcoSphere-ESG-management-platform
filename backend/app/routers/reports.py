@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies.auth import require_admin
+from app.dependencies.auth import get_current_employee
 from app.models.employees import Employee
 from app.models.departments import Department
 from app.models.environmental import CarbonTransaction, EnvironmentalGoal, ProductEsgProfile
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 
 # ---- Standard Reports -----------------------------------------------------
 @router.get("/environmental")
-def environmental_report(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def environmental_report(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     total_emission = db.query(func.coalesce(func.sum(CarbonTransaction.calculated_emission), 0)).scalar()
 
     emission_by_department = [
@@ -67,7 +67,7 @@ def environmental_report(db: Session = Depends(get_db), _: Employee = Depends(re
 
 
 @router.get("/social")
-def social_report(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def social_report(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     total_participation = db.query(func.count(EmployeeParticipation.id)).scalar() or 0
     approved = db.query(func.count(EmployeeParticipation.id)).filter(EmployeeParticipation.approval_status == "Approved").scalar() or 0
     under_review = db.query(func.count(EmployeeParticipation.id)).filter(EmployeeParticipation.approval_status == "Under Review").scalar() or 0
@@ -96,7 +96,7 @@ def social_report(db: Session = Depends(get_db), _: Employee = Depends(require_a
 
 
 @router.get("/governance")
-def governance_report(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def governance_report(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     total_acks = db.query(func.count(PolicyAcknowledgement.id)).scalar() or 0
     total_policies = db.query(func.count(EsgPolicy.id)).filter(EsgPolicy.status == "Active").scalar() or 0
     total_employees = db.query(func.count(Employee.id)).filter(Employee.status == "Active").scalar() or 0
@@ -124,7 +124,7 @@ def governance_report(db: Session = Depends(get_db), _: Employee = Depends(requi
 
 
 @router.get("/esg-summary")
-def esg_summary_report(db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def esg_summary_report(db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     department_names = {d.id: d.name for d in db.query(Department).all()}
     latest_scores = get_all_latest_scores(db)
     overall = get_overall_score(db)
@@ -234,7 +234,7 @@ def _build_custom_rows(db: Session, filters: CustomReportFilter) -> list[dict]:
 
 
 @router.post("/custom", response_model=CustomReportResponse)
-def custom_report(payload: CustomReportFilter, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def custom_report(payload: CustomReportFilter, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     rows = _build_custom_rows(db, payload)
     return CustomReportResponse(
         module=payload.module or "Environmental",
@@ -254,7 +254,7 @@ def custom_report_export(
     employee_id: Optional[int] = Query(default=None),
     challenge_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
-    _: Employee = Depends(require_admin),
+    _: Employee = Depends(get_current_employee),
 ):
     """CSV export is mandatory (Section 17); PDF/Excel are stretch goals and
     intentionally not implemented in this build."""

@@ -75,6 +75,11 @@ function EmissionFactorsTable() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyFactor);
 
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(emissionFactors.length / PAGE_SIZE));
+  const pagedRows = emissionFactors.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   const openNew = () => {
     setEditingId(null);
     setForm(emptyFactor);
@@ -122,7 +127,7 @@ function EmissionFactorsTable() {
             </tr>
           </thead>
           <tbody>
-            {emissionFactors.map((f) => (
+            {pagedRows.map((f) => (
               <tr key={f.id}>
                 <td>{f.category}</td>
                 <td className="mono">{f.factor}</td>
@@ -147,6 +152,20 @@ function EmissionFactorsTable() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button className="dept-pill" disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ opacity: page === 0 ? 0.4 : 1 }}>
+            ← Prev
+          </button>
+          <span className="text-secondary" style={{ fontSize: 13, minWidth: 150, textAlign: 'center' }}>
+            Page {page + 1} of {totalPages} ({emissionFactors.length} factors)
+          </span>
+          <button className="dept-pill" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ opacity: page >= totalPages - 1 ? 0.4 : 1 }}>
+            Next →
+          </button>
+        </div>
+      )}
 
       {modalOpen && (
         <Modal title={editingId != null ? 'Edit Emission Factor' : 'New Emission Factor'} onClose={() => setModalOpen(false)} accent={ACCENT}>
@@ -521,7 +540,7 @@ function GoalsTable() {
                 <td>{g.department}</td>
                 <td>{g.target} {g.unit}</td>
                 <td>{g.current} {g.unit}</td>
-                <td><ProgressBar percent={g.progress} /></td>
+                <td><ProgressBar percent={g.progress} color={ACCENT} /></td>
                 <td className="mono">{g.deadline}</td>
                 <td><StatusPill status={g.status} /></td>
                 <td>
