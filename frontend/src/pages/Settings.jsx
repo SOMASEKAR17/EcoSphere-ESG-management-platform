@@ -13,7 +13,7 @@ const TABS = ['Departments', 'Categories', 'ESG Configuration', 'Notification Se
 
 export default function Settings() {
   const [tab, setTab] = useTabParam(TABS, 'Departments');
-  const { config, preferences, updateConfig, updatePreferences } = useSettings();
+  const { config, preferences, updateConfig, updatePreferences, pushToast } = useSettings();
   const contentRef = useFadeInUp([tab]);
   
   const [departments, setDepartments] = useState([]);
@@ -22,6 +22,9 @@ export default function Settings() {
 
   const [deptModalOpen, setDeptModalOpen] = useState(false);
   const [deptForm, setDeptForm] = useState({ name: '', code: '' });
+
+  const [catModalOpen, setCatModalOpen] = useState(false);
+  const [catForm, setCatForm] = useState({ name: '', type: 'CSR Activity' });
 
   const fetchMasterData = async () => {
     setLoadingDepts(true);
@@ -65,9 +68,23 @@ export default function Settings() {
       await api.createDepartment({ name: deptForm.name, code: deptForm.code });
       setDeptModalOpen(false);
       setDeptForm({ name: '', code: '' });
+      pushToast('Department created successfully', 'success');
       fetchMasterData();
     } catch (err) {
-      console.error(err);
+      pushToast(err.response?.data?.detail || 'Failed to create department', 'error');
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!catForm.name.trim()) return;
+    try {
+      await api.createCategory({ name: catForm.name, type: catForm.type });
+      setCatModalOpen(false);
+      setCatForm({ name: '', type: 'CSR Activity' });
+      pushToast('Category created successfully', 'success');
+      fetchMasterData();
+    } catch (err) {
+      pushToast(err.response?.data?.detail || 'Failed to create category', 'error');
     }
   };
 
@@ -160,7 +177,9 @@ export default function Settings() {
         {tab === 'Categories' && (
           <>
             <div className="panel-toolbar">
-              <button className="btn btn--ghost" disabled><Plus size={15} /> New Category</button>
+              <button className="btn btn--primary" onClick={() => setCatModalOpen(true)}>
+                <Plus size={15} /> New Category
+              </button>
             </div>
             <div className="data-table-wrap" style={{ marginBottom: 28 }}>
               <table className="data-table">
@@ -182,6 +201,33 @@ export default function Settings() {
                 </tbody>
               </table>
             </div>
+
+            {catModalOpen && (
+              <Modal title="New Category" onClose={() => setCatModalOpen(false)} accent="var(--text-secondary)">
+                <div className="form-field">
+                  <label>Name</label>
+                  <input
+                    value={catForm.name}
+                    onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                    placeholder="e.g. Health & Safety"
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Type</label>
+                  <select
+                    value={catForm.type}
+                    onChange={(e) => setCatForm({ ...catForm, type: e.target.value })}
+                  >
+                    <option value="CSR Activity">CSR Activity</option>
+                    <option value="Challenge">Challenge</option>
+                    <option value="Audit Type">Audit Type</option>
+                  </select>
+                </div>
+                <button className="btn btn--primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleCreateCategory}>
+                  Create Category
+                </button>
+              </Modal>
+            )}
           </>
         )}
 

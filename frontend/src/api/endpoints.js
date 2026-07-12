@@ -96,6 +96,7 @@ export const redeemReward = (id) => apiClient.post(`/rewards/${id}/redeem`);
 export const getMyRedemptions = () => apiClient.get('/rewards/redemptions/me');
 
 export const getLeaderboard = () => apiClient.get('/leaderboard');
+export const getMyChallengeParticipations = () => apiClient.get('/challenge-participation/me');
 
 // ---------- Departments & Categories ----------
 export const getDepartments = () => apiClient.get('/departments');
@@ -105,6 +106,7 @@ export const deleteDepartment = (id) => apiClient.delete(`/departments/${id}`);
 
 export const getCategories = (type) =>
   apiClient.get('/categories', { params: type ? { type } : {} });
+export const createCategory = (payload) => apiClient.post('/categories', payload);
 
 // ---------- Settings ----------
 export const getESGConfig = () => apiClient.get('/settings/config');
