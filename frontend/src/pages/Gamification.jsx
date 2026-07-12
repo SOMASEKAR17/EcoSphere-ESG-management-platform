@@ -19,6 +19,7 @@ import {
 import SubTabs from '../components/common/SubTabs';
 import ProgressBar from '../components/common/ProgressBar';
 import ToastStack from '../components/common/Toast';
+import StatusPill from '../components/common/StatusPill';
 import useFadeInUp from '../hooks/useFadeInUp';
 import useTabParam from '../hooks/useTabParam';
 import useGamification from '../hooks/useGamification';
@@ -200,7 +201,40 @@ function ChallengesView() {
 }
 
 function ChallengeParticipationView() {
-  return <div className="panel empty-state">Challenge participation log — synced from Social approvals.</div>;
+  const { challengeParticipations } = useGamification();
+
+  return (
+    <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="data-table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Date Joined</th>
+              <th>Challenge ID</th>
+              <th>Status</th>
+              <th>Progress</th>
+              <th>XP Awarded</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(!challengeParticipations || challengeParticipations.length === 0) ? (
+              <tr><td colSpan={5} className="text-secondary text-center py-4">No challenge participations found.</td></tr>
+            ) : (
+              challengeParticipations.map(p => (
+                <tr key={p.id}>
+                  <td>{new Date(p.created_at).toLocaleDateString()}</td>
+                  <td>Challenge #{p.challenge_id}</td>
+                  <td><StatusPill status={p.approval_status} /></td>
+                  <td>{p.progress || 0}%</td>
+                  <td className="mono" style={{ color: 'var(--gamify-xp)' }}>{p.xp_awarded ? `+${p.xp_awarded} XP` : '-'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function BadgeGallery({ compact }) {

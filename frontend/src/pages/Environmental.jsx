@@ -460,8 +460,16 @@ function GoalsTable() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyGoal);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   const visibleGoals = filterGoals(environmentalGoals, query);
+  const totalPages = Math.max(1, Math.ceil(visibleGoals.length / PAGE_SIZE));
+  const pagedRows = visibleGoals.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(0);
+  }, [query]);
 
   const openNew = () => {
     setEditingId(null);
@@ -534,7 +542,7 @@ function GoalsTable() {
             </tr>
           </thead>
           <tbody>
-            {visibleGoals.map((g) => (
+            {pagedRows.map((g) => (
               <tr key={g.id}>
                 <td>{g.name}</td>
                 <td>{g.department}</td>
@@ -559,12 +567,27 @@ function GoalsTable() {
                 </td>
               </tr>
             ))}
-            {visibleGoals.length === 0 && (
+            {pagedRows.length === 0 && (
               <tr><td colSpan={8} className="text-secondary">No goals match "{query}".</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button className="dept-pill" disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ opacity: page === 0 ? 0.4 : 1 }}>
+            ← Prev
+          </button>
+          <span className="text-secondary" style={{ fontSize: 13, minWidth: 150, textAlign: 'center' }}>
+            Page {page + 1} of {totalPages} ({visibleGoals.length} goals)
+          </span>
+          <button className="dept-pill" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ opacity: page >= totalPages - 1 ? 0.4 : 1 }}>
+            Next →
+          </button>
+        </div>
+      )}
+
       <p className="text-secondary" style={{ fontSize: 12, marginTop: 10 }}>
         A goal is auto-marked Completed once its current CO₂ reaches its target. Carbon Transactions auto-generated from Purchase / Manufacturing / Fleet / Expenses.
       </p>

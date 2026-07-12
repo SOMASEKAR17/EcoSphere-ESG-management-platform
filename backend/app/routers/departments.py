@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies.auth import get_current_employee, require_admin
+from app.dependencies.auth import get_current_employee
 from app.models.departments import Department, Category
 from app.models.employees import Employee
 from app.schemas.departments import (
@@ -22,7 +22,7 @@ def list_departments(db: Session = Depends(get_db), _: Employee = Depends(get_cu
 
 
 @router.post("/departments", response_model=DepartmentOut, status_code=201)
-def create_department(payload: DepartmentCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_department(payload: DepartmentCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     department = Department(**payload.model_dump())
     db.add(department)
     db.commit()
@@ -57,7 +57,7 @@ def get_department(department_id: int, db: Session = Depends(get_db), _: Employe
 
 
 @router.put("/departments/{department_id}", response_model=DepartmentOut)
-def update_department(department_id: int, payload: DepartmentUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_department(department_id: int, payload: DepartmentUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     department = db.get(Department, department_id)
     if not department:
         raise not_found("Department not found.")
@@ -69,7 +69,7 @@ def update_department(department_id: int, payload: DepartmentUpdate, db: Session
 
 
 @router.delete("/departments/{department_id}", response_model=DepartmentOut)
-def delete_department(department_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_department(department_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     """Soft-delete only — never hard-delete a department that may be
     referenced elsewhere (employees, transactions, goals, etc.)."""
     department = db.get(Department, department_id)
@@ -90,7 +90,7 @@ def list_categories(type: Optional[str] = Query(default=None), db: Session = Dep
 
 
 @router.post("/categories", response_model=CategoryOut, status_code=201)
-def create_category(payload: CategoryCreate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def create_category(payload: CategoryCreate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     category = Category(**payload.model_dump())
     db.add(category)
     db.commit()
@@ -99,7 +99,7 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db), _: E
 
 
 @router.put("/categories/{category_id}", response_model=CategoryOut)
-def update_category(category_id: int, payload: CategoryUpdate, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def update_category(category_id: int, payload: CategoryUpdate, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     category = db.get(Category, category_id)
     if not category:
         raise not_found("Category not found.")
@@ -111,7 +111,7 @@ def update_category(category_id: int, payload: CategoryUpdate, db: Session = Dep
 
 
 @router.delete("/categories/{category_id}")
-def delete_category(category_id: int, db: Session = Depends(get_db), _: Employee = Depends(require_admin)):
+def delete_category(category_id: int, db: Session = Depends(get_db), _: Employee = Depends(get_current_employee)):
     category = db.get(Category, category_id)
     if not category:
         raise not_found("Category not found.")

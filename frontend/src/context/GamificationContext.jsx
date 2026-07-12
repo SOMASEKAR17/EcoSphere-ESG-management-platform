@@ -22,6 +22,7 @@ export function GamificationProvider({ children }) {
   const [badges, setBadges] = useState([]);
   const [rewards, setRewards] = useState([]);
   const [redemptions, setRedemptions] = useState([]);
+  const [challengeParticipations, setChallengeParticipations] = useState([]);
   const [leaderboardIndividual, setLeaderboardIndividual] = useState(fallbackLeaderboardIndividual);
   const [leaderboardDepartment] = useState(fallbackLeaderboardDepartment);
   const [loading, setLoading] = useState(true);
@@ -45,7 +46,7 @@ export function GamificationProvider({ children }) {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [meRes, challengesRes, badgesRes, rewardsRes, leaderboardRes, redemptionsRes] =
+        const [meRes, challengesRes, badgesRes, rewardsRes, leaderboardRes, redemptionsRes, partsRes] =
           await Promise.allSettled([
             api.getMe(),
             api.getChallenges(),
@@ -53,6 +54,7 @@ export function GamificationProvider({ children }) {
             api.getRewards(),
             api.getLeaderboard(),
             api.getMyRedemptions(),
+            api.getMyChallengeParticipations(),
           ]);
 
         // --- User stats ---
@@ -146,6 +148,11 @@ export function GamificationProvider({ children }) {
             name: `Reward #${r.reward_id}`,
             date: new Date(r.redeemed_at).toLocaleDateString(),
           })));
+        }
+
+        // --- Participations ---
+        if (partsRes.status === 'fulfilled' && Array.isArray(partsRes.value.data)) {
+          setChallengeParticipations(partsRes.value.data);
         }
       } catch {
         setChallenges(fallbackChallenges);
@@ -246,7 +253,7 @@ export function GamificationProvider({ children }) {
   const value = useMemo(
     () => ({
       userStats,
-      challenges, badges, rewards, redemptions,
+      challenges, badges, rewards, redemptions, challengeParticipations,
       leaderboardIndividual, leaderboardDepartment,
       loading, toasts, dismissToast,
       awardXP, activateChallenge, submitForReview, approveAndComplete, archiveChallenge,
@@ -254,7 +261,7 @@ export function GamificationProvider({ children }) {
     }),
     [
       userStats,
-      challenges, badges, rewards, redemptions,
+      challenges, badges, rewards, redemptions, challengeParticipations,
       leaderboardIndividual, leaderboardDepartment,
       loading, toasts, dismissToast,
       awardXP, activateChallenge, submitForReview, approveAndComplete, archiveChallenge,
