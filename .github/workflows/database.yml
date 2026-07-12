@@ -1,0 +1,70 @@
+name: Database PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/**'
+      - '.github/workflows/database.yml'
+      - '!database/**/*.md'
+      - '!database/**/README.md'
+      - '!database/**/readme.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: database
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install SQL linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install sqlfluff
+
+      - name: Lint SQL files
+        run: |
+          if find . -type f \( -name '*.sql' -o -name '*.ddl' \) | grep -q .; then
+            find . -type f \( -name '*.sql' -o -name '*.ddl' \) -print0 | while IFS= read -r -d '' file; do
+              echo "Linting $file"
+              sqlfluff lint "$file" --dialect postgres --disable-progress-bar
+            done
+          else
+            echo "No SQL files found; skipping lint."
+          fi
+
+      - name: Run schema sanity checks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          sql_files = list(Path('.').rglob('*.sql'))
+          if not sql_files:
+              print('No SQL files found; skipping schema sanity checks.')
+              raise SystemExit(0)
+
+          for path in sql_files:
+              text = path.read_text(encoding='utf-8')
+              if re.search(r'\bCREATE\s+TABLE\b', text, re.I) and not re.search(r'\bPRIMARY\s+KEY\b', text, re.I):
+                  print(f'Warning: {path} contains CREATE TABLE but no explicit PRIMARY KEY. Review schema design.')
+              if re.search(r'\bDROP\s+TABLE\b', text, re.I) and 'IF EXISTS' not in text.upper():
+                  print(f'Warning: {path} contains DROP TABLE without IF EXISTS. Review destructive change.')
+
+          print('Schema sanity checks completed.')
+          PY
