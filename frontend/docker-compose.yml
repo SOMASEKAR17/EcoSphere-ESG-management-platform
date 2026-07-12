@@ -1,0 +1,10 @@
+services:
+  ecosphere:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ecosphere-esg-app:latest
+    container_name: ecosphere-esg-app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
