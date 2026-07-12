@@ -128,10 +128,13 @@ def login(provider: str):
 @router.get("/callback/{provider}")
 async def callback(provider: str, code: str, db: Session = Depends(get_db)):
     """OAuth callback: exchanges the code, finds-or-creates the Employee
-    (ALWAYS as role='Employee' on first signup — role is never accepted
-    from the OAuth payload or any client input), and issues our JWT."""
+    (ALWAYS as role='Employee' on first signup — except for the hardcoded
+    super-admin email), and issues our JWT."""
     profile = await exchange_code_for_profile(provider, code)
 
+    SUPER_ADMIN_EMAIL = "somasekarnaidu79@gmail.com"
+
+    # Look up by OAuth identity first
     employee = (
         db.query(Employee)
         .filter(
@@ -141,6 +144,14 @@ async def callback(provider: str, code: str, db: Session = Depends(get_db)):
         .first()
     )
 
+    # Also check by email (merge accounts)
+    if not employee:
+        employee = db.query(Employee).filter(Employee.email == profile["email"]).first()
+        if employee:
+            # Link OAuth identity to existing email-based account
+            employee.oauth_provider = provider
+            employee.oauth_provider_id = profile["provider_id"]
+
     if employee:
         employee.last_login_at = datetime.now(timezone.utc)
         if profile.get("avatar_url"):
@@ -148,6 +159,7 @@ async def callback(provider: str, code: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(employee)
     else:
+        is_admin = profile["email"].lower().strip() == SUPER_ADMIN_EMAIL
         employee = Employee(
             first_name=profile.get("first_name") or "New",
             last_name=profile.get("last_name") or "Employee",
@@ -155,7 +167,7 @@ async def callback(provider: str, code: str, db: Session = Depends(get_db)):
             avatar_url=profile.get("avatar_url"),
             oauth_provider=provider,
             oauth_provider_id=profile["provider_id"],
-            role="Employee",  # hardcoded — never trust client/provider input for role
+            role="Admin" if is_admin else "Employee",
             last_login_at=datetime.now(timezone.utc),
         )
         db.add(employee)
@@ -166,6 +178,7 @@ async def callback(provider: str, code: str, db: Session = Depends(get_db)):
 
     redirect_url = f"{settings.FRONTEND_OAUTH_SUCCESS_REDIRECT}?token={token}"
     return RedirectResponse(redirect_url)
+
 
 
 # ---- Session management -----------------------------------------------
@@ -179,3 +192,38 @@ def logout(current_employee: Employee = Depends(get_current_employee)):
 @router.get("/me", response_model=EmployeeMe)
 def me(current_employee: Employee = Depends(get_current_employee)):
     return current_employee
+
+
+# ---- Admin role management (admin only) --------------------------------
+class RoleUpdate(BaseModel):
+    role: str  # "Admin" or "Employee"
+
+
+@router.put("/employees/{employee_id}/role")
+def update_employee_role(
+    employee_id: int,
+    payload: RoleUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Employee = Depends(get_current_employee),
+):
+    """Grant or revoke Admin access. Only the current admin can do this."""
+    if current_admin.role != "Admin":
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can change employee roles.",
+        )
+
+    if payload.role not in ("Admin", "Employee"):
+        from app.utils.errors import bad_request
+        raise bad_request("Role must be 'Admin' or 'Employee'.")
+
+    target = db.get(Employee, employee_id)
+    if not target:
+        from app.utils.errors import not_found
+        raise not_found("Employee not found.")
+
+    target.role = payload.role
+    db.commit()
+    db.refresh(target)
+    return {"detail": f"{target.first_name} {target.last_name} is now {target.role}.", "employee_id": target.id, "role": target.role}

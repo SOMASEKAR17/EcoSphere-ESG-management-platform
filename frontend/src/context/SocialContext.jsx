@@ -116,12 +116,12 @@ export function SocialProvider({ children }) {
   );
 
   const joinActivity = useCallback(
-    async (id) => {
+    async (id, proofFile = null) => {
       const activity = csrActivities.find((a) => a.id === id);
       if (!activity) return;
 
       try {
-        await api.participateInCSR(id);
+        await api.participateInCSR(id, proofFile);
         setCsrActivities((prev) => prev.map((a) => (a.id === id ? { ...a, joined: a.joined + 1 } : a)));
         setEmployeeParticipation((prev) => [
           ...prev,
@@ -129,7 +129,7 @@ export function SocialProvider({ children }) {
             id: Date.now(),
             employee: CURRENT_USER,
             activity: activity.name,
-            proof: activity.evidenceRequired ? 'pending-upload' : '—',
+            proof: proofFile ? proofFile.name : '—',
             points: DEFAULT_JOIN_POINTS,
             approval: 'Pending',
             rejectReason: null,
@@ -137,7 +137,7 @@ export function SocialProvider({ children }) {
         ]);
         pushToast(`You joined "${activity.name}" — pending approval`, 'success');
       } catch (err) {
-        pushToast(err?.response?.data?.detail || 'Failed to join activity', 'error');
+        pushToast(err?.response?.data?.detail || err?.message || 'Failed to join activity', 'error');
       }
     },
     [csrActivities, pushToast]

@@ -113,16 +113,18 @@
   width: 140px;
   height: 8px;
   border-radius: 999px;
-  background: var(--border);
+  background: color-mix(in srgb, var(--text-tertiary) 35%, var(--bg-surface));
   overflow: hidden;
   display: inline-block;
   vertical-align: middle;
   margin-right: 8px;
+  border: 1px solid var(--border);
 }
 .progress-bar__fill {
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--env-green), #6bc76e);
+  transition: width 0.4s ease;
 }
 
 /* Toggle switch */

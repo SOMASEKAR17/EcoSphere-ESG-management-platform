@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -343,6 +343,12 @@ function CarbonTransactionsTable() {
   const departments = useMemo(() => ['All', ...departmentTotals.map((d) => d.department)], [departmentTotals]);
   const filtered = deptFilter === 'All' ? carbonTransactions : carbonTransactions.filter((t) => t.department === deptFilter);
 
+  // Pagination
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <>
       <CarbonCalculator />
@@ -390,7 +396,7 @@ function CarbonTransactionsTable() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
+            {pagedRows.map((c) => (
               <tr key={c.id}>
                 <td>{c.source}</td>
                 <td>{c.department}</td>
@@ -398,12 +404,26 @@ function CarbonTransactionsTable() {
                 <td className="mono">{c.date}</td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {pagedRows.length === 0 && (
               <tr><td colSpan={4} className="text-secondary">No transactions for this department yet.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="dept-pills" style={{ marginTop: 12 }}>
+          <button className="dept-pill" disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ opacity: page === 0 ? 0.4 : 1 }}>
+            ← Prev
+          </button>
+          <span className="text-secondary" style={{ fontSize: 12, padding: '7px 8px' }}>
+            Page {page + 1} of {totalPages} ({filtered.length} transactions)
+          </span>
+          <button className="dept-pill" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ opacity: page >= totalPages - 1 ? 0.4 : 1 }}>
+            Next →
+          </button>
+        </div>
+      )}
     </>
   );
 }

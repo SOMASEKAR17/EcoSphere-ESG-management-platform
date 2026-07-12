@@ -4,6 +4,9 @@ import {
   challenges as fallbackChallenges,
   badges as fallbackBadges,
   rewards as fallbackRewards,
+  leaderboardIndividual as fallbackLeaderboardIndividual,
+  leaderboardDepartment as fallbackLeaderboardDepartment,
+  initialUserStats,
 } from '../data/mockData';
 
 export const GamificationContext = createContext(null);
@@ -14,14 +17,13 @@ const nextToastId = (() => {
 })();
 
 export function GamificationProvider({ children }) {
-  const [xp, setXp] = useState(0);
-  const [points, setPoints] = useState(0);
-  const [level, setLevel] = useState(1);
-
+  const [userStats, setUserStats] = useState(initialUserStats);
   const [challenges, setChallenges] = useState([]);
   const [badges, setBadges] = useState([]);
   const [rewards, setRewards] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [redemptions, setRedemptions] = useState([]);
+  const [leaderboardIndividual, setLeaderboardIndividual] = useState(fallbackLeaderboardIndividual);
+  const [leaderboardDepartment] = useState(fallbackLeaderboardDepartment);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
 
@@ -43,71 +45,108 @@ export function GamificationProvider({ children }) {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [meRes, challengesRes, badgesRes, rewardsRes, leaderboardRes] = await Promise.allSettled([
-          api.getMe(),
-          api.getChallenges(),
-          api.getMyBadges(),
-          api.getRewards(),
-          api.getLeaderboard(),
-        ]);
+        const [meRes, challengesRes, badgesRes, rewardsRes, leaderboardRes, redemptionsRes] =
+          await Promise.allSettled([
+            api.getMe(),
+            api.getChallenges(),
+            api.getBadges(),
+            api.getRewards(),
+            api.getLeaderboard(),
+            api.getMyRedemptions(),
+          ]);
 
+        // --- User stats ---
         if (meRes.status === 'fulfilled') {
-          setXp(meRes.value.data.xp_balance || 0);
-          setPoints(meRes.value.data.points_balance || 0);
-          setLevel(Math.floor((meRes.value.data.xp_balance || 0) / 100) + 1);
+          const me = meRes.value.data;
+          setUserStats({
+            totalXP: me.xp_balance || 0,
+            completedChallenges: 0, // Updated below from challenges
+          });
         }
 
-        setChallenges(
-          challengesRes.status === 'fulfilled'
-            ? challengesRes.value.data.map((c) => ({
-                id: c.id,
-                title: c.title,
-                description: c.description,
-                xp: c.xp_reward,
-                points: c.xp_reward,
-                progress: 0, // Should be joined from participation, but simplifying for frontend
-                status: c.status || 'Active',
-                deadline: c.deadline,
-              }))
-            : fallbackChallenges
-        );
+        // --- Challenges ---
+        if (challengesRes.status === 'fulfilled' && Array.isArray(challengesRes.value.data)) {
+          const mapped = challengesRes.value.data.map((c) => ({
+            id: c.id,
+            icon: ['bike', 'recycle', 'tram'][c.id % 3],
+            name: c.title,
+            xp: c.xp_reward || 0,
+            difficulty: c.difficulty || 'Medium',
+            deadline: c.deadline ? new Date(c.deadline).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : 'N/A',
+            status: c.status || 'Active',
+          }));
+          setChallenges(mapped);
+          const completed = mapped.filter(c => c.status === 'Completed').length;
+          setUserStats(prev => ({ ...prev, completedChallenges: completed }));
+        } else {
+          setChallenges(fallbackChallenges);
+        }
 
-        setBadges(
-          badgesRes.status === 'fulfilled'
-            ? badgesRes.value.data.map((b) => ({
-                id: b.badge_id,
-                name: b.badge?.name || 'Badge',
-                description: b.badge?.description || '',
-                icon: b.badge?.icon_url || 'award',
-                unlockedAt: b.awarded_at,
-              }))
-            : fallbackBadges.filter((b) => b.unlocked)
-        );
+        // --- Badges ---
+        if (badgesRes.status === 'fulfilled' && Array.isArray(badgesRes.value.data)) {
+          const me = meRes.status === 'fulfilled' ? meRes.value.data : null;
+          const myXP = me?.xp_balance || initialUserStats.totalXP;
+          const completedCount = challengesRes.status === 'fulfilled'
+            ? challengesRes.value.data.filter(c => c.status === 'Completed').length
+            : initialUserStats.completedChallenges;
 
-        setRewards(
-          rewardsRes.status === 'fulfilled'
-            ? rewardsRes.value.data.map((r) => ({
-                id: r.id,
-                name: r.name,
-                description: r.description,
-                pointsRequired: r.points_required,
-                icon: 'gift',
-                stock: r.stock_count,
-              }))
-            : fallbackRewards
-        );
+          setBadges(badgesRes.value.data.map(b => {
+            const iconMap = { 'Green Beginner': 'seedling', 'Carbon Saver': 'earth', 'Sustainability Champion': 'trophy', 'Team Player': 'star' };
+            const icon = iconMap[b.name] || 'star';
+            // Determine unlock rule from badge name
+            const isXPBased = b.name.includes('Beginner') || b.name.includes('Saver');
+            const threshold = b.xp_threshold || (isXPBased ? (b.name.includes('Beginner') ? 100 : 500) : (b.name.includes('Champion') ? 5 : 2));
+            const current = isXPBased ? myXP : completedCount;
+            const earned = current >= threshold;
+            return {
+              id: b.id,
+              name: b.name,
+              icon,
+              unlockRule: { type: isXPBased ? 'xp' : 'challengesCompleted', threshold },
+              threshold,
+              current,
+              earned,
+              progressPercent: Math.min(100, Math.round((current / threshold) * 100)),
+            };
+          }));
+        } else {
+          setBadges(fallbackBadges);
+        }
 
-        setLeaderboard(
-          leaderboardRes.status === 'fulfilled'
-            ? leaderboardRes.value.data.map((l) => ({
-                rank: l.rank,
-                name: `${l.first_name} ${l.last_name}`,
-                score: l.xp_balance,
-                department: `Dept ${l.department_id}`,
-                isCurrentUser: false, // Could map via meRes ID
-              }))
-            : []
-        );
+        // --- Rewards ---
+        if (rewardsRes.status === 'fulfilled' && Array.isArray(rewardsRes.value.data)) {
+          const iconList = ['bottle', 'tree', 'bag', 'gift', 'parking', 'calendar'];
+          setRewards(rewardsRes.value.data.map((r, i) => ({
+            id: r.id,
+            icon: iconList[i % iconList.length],
+            name: r.name,
+            description: r.description || '',
+            xpCost: r.points_required || 0,
+            stock: r.stock_count,
+          })));
+        } else {
+          setRewards(fallbackRewards);
+        }
+
+        // --- Leaderboard ---
+        if (leaderboardRes.status === 'fulfilled' && Array.isArray(leaderboardRes.value.data)) {
+          const meId = meRes.status === 'fulfilled' ? meRes.value.data.id : null;
+          setLeaderboardIndividual(leaderboardRes.value.data.map(l => ({
+            rank: l.rank,
+            name: `${l.first_name} ${l.last_name}`,
+            xp: l.xp_balance || 0,
+            isCurrentUser: l.employee_id === meId,
+          })));
+        }
+
+        // --- Redemptions ---
+        if (redemptionsRes.status === 'fulfilled' && Array.isArray(redemptionsRes.value.data)) {
+          setRedemptions(redemptionsRes.value.data.map(r => ({
+            id: r.id,
+            name: `Reward #${r.reward_id}`,
+            date: new Date(r.redeemed_at).toLocaleDateString(),
+          })));
+        }
       } catch {
         setChallenges(fallbackChallenges);
         setBadges(fallbackBadges);
@@ -119,35 +158,55 @@ export function GamificationProvider({ children }) {
     fetchAll();
   }, []);
 
+  // ---------- XP management ----------
   const awardXP = useCallback(
     (amount, reason) => {
-      setXp((prev) => {
-        const next = prev + amount;
-        const newLevel = Math.floor(next / 100) + 1;
-        if (newLevel > Math.floor(prev / 100) + 1) {
-          pushToast(`Level Up! You are now Level ${newLevel} 🎉`, 'badge');
-          setLevel(newLevel);
-        }
-        return next;
+      setUserStats(prev => {
+        const next = prev.totalXP + amount;
+        return { ...prev, totalXP: next };
       });
-      setPoints((prev) => prev + amount); // Simulating 1 XP = 1 Point
       pushToast(`+${amount} XP: ${reason}`, 'badge');
     },
     [pushToast]
   );
 
-  const redeemReward = useCallback(
-    async (reward) => {
-      try {
-        await api.redeemReward(reward.id);
-        setPoints((prev) => prev - reward.pointsRequired);
-        setRewards((prev) =>
-          prev.map((r) => (r.id === reward.id ? { ...r, stock: r.stock - 1 } : r))
-        );
-        pushToast(`Redeemed "${reward.name}"!`, 'badge');
-      } catch (err) {
-        pushToast(err?.response?.data?.detail || 'Failed to redeem reward', 'error');
+  // ---------- Challenge lifecycle ----------
+  const activateChallenge = useCallback(
+    async (id) => {
+      try { await api.updateChallenge(id, { status: 'Active' }); } catch { /* local update */ }
+      setChallenges(prev => prev.map(c => c.id === id ? { ...c, status: 'Active' } : c));
+      pushToast('Challenge activated!', 'success');
+    },
+    [pushToast]
+  );
+
+  const submitForReview = useCallback(
+    async (id) => {
+      try { await api.updateChallenge(id, { status: 'Under Review' }); } catch {}
+      setChallenges(prev => prev.map(c => c.id === id ? { ...c, status: 'Under Review' } : c));
+      pushToast('Challenge submitted for review.', 'success');
+    },
+    [pushToast]
+  );
+
+  const approveAndComplete = useCallback(
+    async (id) => {
+      try { await api.updateChallenge(id, { status: 'Completed' }); } catch {}
+      const ch = challenges.find(c => c.id === id);
+      setChallenges(prev => prev.map(c => c.id === id ? { ...c, status: 'Completed' } : c));
+      if (ch) {
+        awardXP(ch.xp, `${ch.name} completed`);
+        setUserStats(prev => ({ ...prev, completedChallenges: prev.completedChallenges + 1 }));
       }
+    },
+    [challenges, awardXP, pushToast]
+  );
+
+  const archiveChallenge = useCallback(
+    async (id) => {
+      try { await api.updateChallenge(id, { status: 'Archived' }); } catch {}
+      setChallenges(prev => prev.map(c => c.id === id ? { ...c, status: 'Archived' } : c));
+      pushToast('Challenge archived.', 'success');
     },
     [pushToast]
   );
@@ -156,7 +215,6 @@ export function GamificationProvider({ children }) {
     async (id) => {
       try {
         await api.joinChallenge(id);
-        setChallenges((prev) => prev.map((c) => (c.id === id ? { ...c, progress: 1 } : c)));
         pushToast('Joined challenge!', 'badge');
       } catch (err) {
         pushToast(err?.response?.data?.detail || 'Failed to join challenge', 'error');
@@ -165,18 +223,42 @@ export function GamificationProvider({ children }) {
     [pushToast]
   );
 
+  // ---------- Rewards ----------
+  const redeemReward = useCallback(
+    async (reward) => {
+      if (userStats.totalXP < reward.xpCost) {
+        pushToast('Not enough XP to redeem this reward.', 'error');
+        return;
+      }
+      try {
+        await api.redeemReward(reward.id);
+        setUserStats(prev => ({ ...prev, totalXP: prev.totalXP - reward.xpCost }));
+        setRewards(prev => prev.map(r => r.id === reward.id ? { ...r, stock: (r.stock || 1) - 1 } : r));
+        setRedemptions(prev => [...prev, { id: Date.now(), name: reward.name, date: new Date().toLocaleDateString() }]);
+        pushToast(`Redeemed "${reward.name}"!`, 'badge');
+      } catch (err) {
+        pushToast(err?.response?.data?.detail || 'Failed to redeem reward', 'error');
+      }
+    },
+    [userStats.totalXP, pushToast]
+  );
+
   const value = useMemo(
     () => ({
-      xp, points, level,
-      challenges, badges, rewards, leaderboard,
+      userStats,
+      challenges, badges, rewards, redemptions,
+      leaderboardIndividual, leaderboardDepartment,
       loading, toasts, dismissToast,
-      awardXP, redeemReward, joinChallenge,
+      awardXP, activateChallenge, submitForReview, approveAndComplete, archiveChallenge,
+      joinChallenge, redeemReward,
     }),
     [
-      xp, points, level,
-      challenges, badges, rewards, leaderboard,
+      userStats,
+      challenges, badges, rewards, redemptions,
+      leaderboardIndividual, leaderboardDepartment,
       loading, toasts, dismissToast,
-      awardXP, redeemReward, joinChallenge,
+      awardXP, activateChallenge, submitForReview, approveAndComplete, archiveChallenge,
+      joinChallenge, redeemReward,
     ]
   );
 
