@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, Text, Date, Boolean, ForeignKey,
-    UniqueConstraint, CheckConstraint, TIMESTAMP, func, Computed,
+    UniqueConstraint, TIMESTAMP, func, Computed,
 )
 
 from app.database import Base

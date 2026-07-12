@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Text, Numeric, Date, ForeignKey, CheckConstraint,
+    Column, Integer, String, Numeric, Date, ForeignKey, CheckConstraint,
     TIMESTAMP, func,
 )
 

@@ -8,10 +8,9 @@ from app.models.employees import Employee
 from app.models.gamification import (
     Challenge, ChallengeParticipation, Badge, EmployeeBadge, Reward, RewardRedemption,
 )
-from app.models.config import EsgConfig
 from app.schemas.gamification import (
     ChallengeCreate, ChallengeUpdate, ChallengeOut,
-    ChallengeParticipationUpdate, ChallengeParticipationOut,
+    ChallengeParticipationOut,
     BadgeCreate, BadgeUpdate, BadgeOut, EmployeeBadgeOut,
     RewardCreate, RewardUpdate, RewardOut, RedemptionOut, LeaderboardEntry,
 )

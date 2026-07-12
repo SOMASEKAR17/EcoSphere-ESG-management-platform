@@ -15,7 +15,7 @@ from app.models.departments import Department
 from app.models.environmental import CarbonTransaction, EnvironmentalGoal, ProductEsgProfile
 from app.models.social import CsrActivity, EmployeeParticipation, DiversityMetric
 from app.models.governance import EsgPolicy, PolicyAcknowledgement, Audit, ComplianceIssue
-from app.models.gamification import Challenge, ChallengeParticipation
+from app.models.gamification import ChallengeParticipation
 from app.schemas.reports import CustomReportFilter, CustomReportResponse
 from app.services.scoring_engine import get_all_latest_scores, get_overall_score
 from app.utils.errors import bad_request

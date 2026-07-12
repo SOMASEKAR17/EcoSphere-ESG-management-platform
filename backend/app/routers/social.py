@@ -17,7 +17,7 @@ from app.services.scoring_engine import recalculate_department_score
 from app.services.badge_engine import check_and_award_badges
 from app.services.notification_service import create_notification
 from app.utils.uploads import save_proof_file
-from app.utils.errors import not_found, bad_request, conflict, forbidden
+from app.utils.errors import not_found, bad_request, conflict
 
 router = APIRouter(tags=["Social"])
 

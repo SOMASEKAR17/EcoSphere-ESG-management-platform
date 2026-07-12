@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: esg_secure_password
       POSTGRES_DB: ecosphere_operational
     ports:
-      - "5433:5432" # Avoids port conflict with local pgAdmin/Postgres on 5432
+      - "5430:5432" # Avoids port conflict with local pgAdmin/Postgres on 5432
     volumes:
       - ecosphere_db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql # Automatically runs schema on startup

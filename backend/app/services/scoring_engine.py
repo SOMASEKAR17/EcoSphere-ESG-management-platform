@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.departments import Department
-from app.models.environmental import EnvironmentalGoal, CarbonTransaction
+from app.models.environmental import EnvironmentalGoal
 from app.models.social import EmployeeParticipation, CsrActivity, DiversityMetric
 from app.models.governance import PolicyAcknowledgement, EsgPolicy, ComplianceIssue, Audit
 from app.models.employees import Employee

@@ -34,7 +34,7 @@ if sys.stdout.encoding != "utf-8":
 # =========================================================================
 DB_CONFIG = {
     "host": "localhost",
-    "port": 5433,                        # docker-compose maps 5433 → 5432
+    "port": 5430,                        # docker-compose maps 5433 → 5432
     "database": "ecosphere_operational",
     "user": "esg_admin",
     "password": "esg_secure_password",

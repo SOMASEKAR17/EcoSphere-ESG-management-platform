@@ -1,5 +1,4 @@
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -14,7 +13,7 @@ from app.schemas.governance import (
 )
 from app.services.scoring_engine import recalculate_department_score
 from app.services.notification_service import create_notification
-from app.utils.errors import not_found, bad_request, conflict, forbidden
+from app.utils.errors import not_found, bad_request, conflict
 
 router = APIRouter(tags=["Governance"])
 
