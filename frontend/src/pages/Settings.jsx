@@ -1,21 +1,18 @@
-import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import SubTabs from '../components/common/SubTabs';
 import StatusPill from '../components/common/StatusPill';
 import Toggle from '../components/common/Toggle';
 import useFadeInUp from '../hooks/useFadeInUp';
 import useTabParam from '../hooks/useTabParam';
-import { departments, esgConfigToggles } from '../data/mockData';
+import useSettings from '../hooks/useSettings';
+import { departments } from '../data/mockData';
 
 const TABS = ['Departments', 'Categories', 'ESG Configuration', 'Notification Settings'];
 
 export default function Settings() {
   const [tab, setTab] = useTabParam(TABS, 'Departments');
-  const [toggles, setToggles] = useState(esgConfigToggles);
+  const { toggles, toggleOne } = useSettings();
   const contentRef = useFadeInUp([tab]);
-
-  const toggleOne = (id) =>
-    setToggles((prev) => prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t)));
 
   return (
     <div>
