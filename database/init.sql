@@ -241,11 +241,8 @@ CREATE TABLE compliance_issues (
     owner_id INT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
     due_date DATE NOT NULL,
     status issue_status DEFAULT 'Open',
-    is_overdue BOOLEAN GENERATED ALWAYS AS (
-        CASE WHEN status = 'Open' AND due_date < CURRENT_DATE THEN TRUE ELSE FALSE END
-    ) STORED,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_due_date_not_past CHECK (due_date >= created_at::date)
+    is_overdue BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Badges actually earned by an employee (the award ledger)
